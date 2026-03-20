@@ -1,0 +1,17 @@
+{
+  "name": "醒了吗",
+  "short_name": "醒了吗",
+  "description": "极简饮酒安全兜底与清醒计时工具",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#eef3fb",
+  "theme_color": "#eef3fb",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
