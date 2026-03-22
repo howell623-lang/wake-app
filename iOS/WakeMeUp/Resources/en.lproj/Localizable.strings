@@ -1,0 +1,125 @@
+"app.title" = "WakeMeUp";
+
+"setup.title" = "Set up";
+"setup.description" = "A low-friction drinking session timer and safety fallback. Data stays on device.";
+"setup.profile_section" = "Profile";
+"setup.gender" = "Gender";
+"setup.gender.male" = "Male";
+"setup.gender.female" = "Female";
+"setup.gender.other" = "Other";
+"setup.weight" = "Weight (kg)";
+"setup.height" = "Height (cm)";
+"setup.age" = "Age";
+"setup.threshold" = "Your limit (g)";
+"setup.contact" = "Emergency contact";
+"setup.save" = "Start session";
+"setup.demo" = "Load demo";
+
+"profile.edit" = "Edit profile";
+"profile.save" = "Save changes";
+
+"meal.empty" = "Empty stomach";
+"meal.light" = "Had a snack";
+"meal.normalMeal" = "Had a normal meal";
+
+"dashboard.status.title" = "Tonight";
+"dashboard.drinks.title" = "What you drank";
+"dashboard.drinks.subtitle" = "Low-friction logging with one tap.";
+"dashboard.countdown.title" = "How long until sober";
+"dashboard.countdown.subtitle" = "Estimate only. Food, body size, and pace matter.";
+"dashboard.patrol.title" = "Safety patrol";
+"dashboard.patrol.subtitle" = "Native reminders";
+"dashboard.upgrade.title" = "Upgrade to Pro";
+"dashboard.upgrade.subtitle" = "Keep the UI light. Put the real guardrail in Pro.";
+"dashboard.upgrade.body" = "Unlock patrol reminders, more contacts, stronger reminder logic, history, exports, and custom drinks.";
+"dashboard.profile.title" = "On-device profile";
+"dashboard.profile.subtitle" = "Stored locally on this phone.";
+
+"dashboard.summary.total" = "Pure alcohol";
+"dashboard.summary.sober_at" = "Likely sober around";
+"dashboard.summary.last_drink" = "Last drink";
+
+"risk.calm" = "Still under control";
+"risk.tipsy" = "Starting to feel it";
+"risk.drunk" = "Already over your limit";
+"risk.high" = "High risk";
+"risk.ended" = "Session ended";
+"risk.detail.calm" = "Still within your normal range.";
+"risk.detail.tipsy" = "Over half of your usual limit.";
+"risk.detail.drunk" = "Over your usual limit. Slow down.";
+"risk.detail.high" = "Clearly over the line. Treat this as a risk state.";
+"risk.detail.ended" = "Patrol has been stopped for this session.";
+
+"patrol.free.headline" = "Safety patrol is Pro";
+"patrol.free.detail" = "Free keeps logging and sobriety estimates. Native patrol and stronger fallback stay in Pro.";
+"patrol.pro.headline" = "Native patrol armed";
+"patrol.pro.detail" = "When you cross your limit, iPhone local reminders can keep watching from the lock screen.";
+"patrol.pro.notifications_off" = "Notifications are off";
+"patrol.pro.notifications_detail" = "Enable notifications so patrol reminders can still reach you from the lock screen.";
+"patrol.ended.headline" = "Patrol closed";
+
+"dashboard.patrol.enable_notifications" = "Enable notifications";
+
+"countdown.empty" = "No drinks logged yet";
+"countdown.far" = "Still far from sober";
+"countdown.near" = "Almost there";
+"countdown.clear" = "Basically sober";
+"countdown.done" = "Already cleared";
+"countdown.reached" = "Reached";
+"countdown.target_now" = "Around now";
+"countdown.target_prefix" = "Around %@";
+
+"plan.free" = "Free";
+"plan.pro" = "Pro";
+"plan.supporter" = "Supporter";
+
+"actions.demo" = "Demo";
+"actions.profile" = "Profile";
+"actions.reset" = "Reset";
+"actions.upgrade" = "Upgrade";
+"actions.end_session" = "I'm safe / End session";
+"actions.new_session" = "Start a new session";
+"actions.close" = "Close";
+
+"upgrade.title" = "Pro";
+"upgrade.subtitle" = "Free spreads. Pro carries the real fallback.";
+"upgrade.free.title" = "Free";
+"upgrade.free.body" = "Session logging, BAC estimate, and likely sober time.";
+"upgrade.pro.title" = "Pro";
+"upgrade.pro.body" = "Background-ready patrol reminders, more contacts, stronger fallback logic, history, exports, and custom drink templates.";
+"upgrade.price" = "Lifetime unlock: %@";
+"upgrade.buy" = "Buy lifetime Pro";
+"upgrade.restore" = "Restore purchase";
+"upgrade.purchase.pending" = "Store product is not connected yet. Keep this entry ready for App Store Connect.";
+"upgrade.purchase.cancelled" = "Purchase cancelled.";
+"upgrade.purchase.success" = "Pro unlocked on this device.";
+"upgrade.restore.success" = "Purchase restored.";
+"upgrade.restore.none" = "No previous purchase found.";
+
+"drink.beer.name" = "Beer";
+"drink.wine.name" = "Wine";
+"drink.spirits.name" = "Spirits";
+"drink.baijiu.name" = "Baijiu";
+"drink.beer.unit" = "bottle";
+"drink.wine.unit" = "glass";
+"drink.spirits.unit" = "shot";
+"drink.baijiu.unit" = "liang";
+"drink.current_abv" = "ABV %.0f%%";
+"drink.contribution" = "%dml per tap · %d%% of total";
+
+"session.not_started" = "Not started";
+"session.last_drink_today" = "Last drink today %@";
+"session.last_drink_date" = "Last drink %@";
+
+"notification.warning.title" = "WakeMeUp check-in";
+"notification.warning.body" = "You crossed your limit and have been quiet for a while. Open the app and confirm you're okay.";
+"notification.emergency.title" = "WakeMeUp urgent check-in";
+"notification.emergency.body" = "Still no activity. Open the app now and decide whether to contact someone.";
+
+"format.grams" = "%.1fg";
+"format.percent" = "%.0f%%";
+"format.countdown.days" = "%d day %@:%@:%@";
+"format.unknown" = "-";
+"time.today" = "Today %@";
+"time.tomorrow" = "Tomorrow %@";
+

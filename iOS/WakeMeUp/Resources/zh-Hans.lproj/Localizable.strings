@@ -1,0 +1,125 @@
+"app.title" = "醒了吗?";
+
+"setup.title" = "先设置一下";
+"setup.description" = "极简饮酒安全兜底与清醒计时工具。数据只保存在手机本地。";
+"setup.profile_section" = "本机档案";
+"setup.gender" = "性别";
+"setup.gender.male" = "男";
+"setup.gender.female" = "女";
+"setup.gender.other" = "其他";
+"setup.weight" = "体重 (kg)";
+"setup.height" = "身高 (cm)";
+"setup.age" = "年龄";
+"setup.threshold" = "你的量 (g)";
+"setup.contact" = "紧急联系人";
+"setup.save" = "进入酒局页";
+"setup.demo" = "填充演示数据";
+
+"profile.edit" = "编辑档案";
+"profile.save" = "保存设置";
+
+"meal.empty" = "空腹";
+"meal.light" = "吃了点";
+"meal.normalMeal" = "正常吃过饭";
+
+"dashboard.status.title" = "今晚状态";
+"dashboard.drinks.title" = "喝了多少";
+"dashboard.drinks.subtitle" = "点一下就能记，不打断酒局。";
+"dashboard.countdown.title" = "还要多久";
+"dashboard.countdown.subtitle" = "结果为估算值，进食、体型和饮酒速度都会影响实际情况。";
+"dashboard.patrol.title" = "安全守候";
+"dashboard.patrol.subtitle" = "原生提醒";
+"dashboard.upgrade.title" = "升级 Pro";
+"dashboard.upgrade.subtitle" = "保持现在的 UI，不打断记录主流程。";
+"dashboard.upgrade.body" = "解锁安全守候、多联系人、更强提醒策略、历史记录 / 复盘、导出、自定义酒类。";
+"dashboard.profile.title" = "本机档案";
+"dashboard.profile.subtitle" = "只存在这台手机，不上传。";
+
+"dashboard.summary.total" = "当前累计纯酒精";
+"dashboard.summary.sober_at" = "大概几点缓过来";
+"dashboard.summary.last_drink" = "最后操作";
+
+"risk.calm" = "还在可控范围";
+"risk.tipsy" = "开始有点上头";
+"risk.drunk" = "已经超过你的量";
+"risk.high" = "高危";
+"risk.ended" = "本局已结束";
+"risk.detail.calm" = "还在你的平时量以内。";
+"risk.detail.tipsy" = "已经到你平时量的一半以上。";
+"risk.detail.drunk" = "已经超过你的量了，建议收一收。";
+"risk.detail.high" = "明显超量了，把它当成风险状态处理。";
+"risk.detail.ended" = "这局的守候已经停掉。";
+
+"patrol.free.headline" = "安全守候是 Pro 功能";
+"patrol.free.detail" = "免费版保留完整记录和清醒估算；真正兜底的守候提醒放在 Pro。";
+"patrol.pro.headline" = "原生守候已准备";
+"patrol.pro.detail" = "当你超过自己的量，iPhone 可以通过锁屏本地提醒继续守候。";
+"patrol.pro.notifications_off" = "通知权限还没开";
+"patrol.pro.notifications_detail" = "打开通知后，守候提醒才能在锁屏状态继续工作。";
+"patrol.ended.headline" = "守候已关闭";
+
+"dashboard.patrol.enable_notifications" = "打开通知权限";
+
+"countdown.empty" = "尚未开始饮酒";
+"countdown.far" = "离清醒还差得远";
+"countdown.near" = "快清醒了";
+"countdown.clear" = "基本清醒了";
+"countdown.done" = "已经清醒了";
+"countdown.reached" = "已到这一步";
+"countdown.target_now" = "约 现在";
+"countdown.target_prefix" = "约 %@";
+
+"plan.free" = "Free";
+"plan.pro" = "Pro";
+"plan.supporter" = "Supporter";
+
+"actions.demo" = "Demo";
+"actions.profile" = "档案";
+"actions.reset" = "清空";
+"actions.upgrade" = "查看 Pro";
+"actions.end_session" = "我已安全 / 结束酒局";
+"actions.new_session" = "开始新一局";
+"actions.close" = "关闭";
+
+"upgrade.title" = "Pro";
+"upgrade.subtitle" = "免费负责传播，Pro 负责真正的兜底。";
+"upgrade.free.title" = "Free";
+"upgrade.free.body" = "完整记录酒局、BAC 估算、预计缓过来的时间。";
+"upgrade.pro.title" = "Pro";
+"upgrade.pro.body" = "后台守候提醒、多联系人、更强兜底逻辑、历史复盘、导出、自定义酒类模板。";
+"upgrade.price" = "一次买断：%@";
+"upgrade.buy" = "购买终身 Pro";
+"upgrade.restore" = "恢复购买";
+"upgrade.purchase.pending" = "App Store Connect 里的商品还没接好，先把入口结构保留。";
+"upgrade.purchase.cancelled" = "你取消了购买。";
+"upgrade.purchase.success" = "这台设备已解锁 Pro。";
+"upgrade.restore.success" = "已恢复购买。";
+"upgrade.restore.none" = "没有找到历史购买记录。";
+
+"drink.beer.name" = "啤酒";
+"drink.wine.name" = "红酒";
+"drink.spirits.name" = "洋酒";
+"drink.baijiu.name" = "白酒";
+"drink.beer.unit" = "瓶";
+"drink.wine.unit" = "杯";
+"drink.spirits.unit" = "杯";
+"drink.baijiu.unit" = "两";
+"drink.current_abv" = "当前度数 %.0f%%";
+"drink.contribution" = "单次计入 %dml · 贡献 %d%%";
+
+"session.not_started" = "还没开始记录";
+"session.last_drink_today" = "最后操作 今天 %@";
+"session.last_drink_date" = "最后操作 %@";
+
+"notification.warning.title" = "醒了吗? 守候提醒";
+"notification.warning.body" = "你已经超过自己的量，且有一段时间没操作了。打开 App 确认一下状态。";
+"notification.emergency.title" = "醒了吗? 紧急提醒";
+"notification.emergency.body" = "你已经很久没有操作了。请立刻打开 App，决定是否联系他人。";
+
+"format.grams" = "%.1fg";
+"format.percent" = "%.0f%%";
+"format.countdown.days" = "%d天 %@:%@:%@";
+"format.unknown" = "—";
+"time.today" = "今天 %@";
+"time.tomorrow" = "明天 %@";
+
