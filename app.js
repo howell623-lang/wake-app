@@ -1,4 +1,5 @@
 const STORAGE_KEYS = { config: "wake-app-config", session: "wake-app-session" };
+const TESTING_RESET_ON_LOAD = true;
 
 const DRINKS = {
   beer:    { id: "beer",    name: "啤酒", unit: "瓶", defaultVolumeMl: 500, defaultAbv: 5,  presetLabel: "500ml / 瓶" },
@@ -55,6 +56,12 @@ const state = {
 bootstrap();
 
 function bootstrap() {
+  if (TESTING_RESET_ON_LOAD) {
+    window.localStorage.removeItem(STORAGE_KEYS.config);
+    window.localStorage.removeItem(STORAGE_KEYS.session);
+    state.config = null;
+    state.session = createEmptySession();
+  }
   rolloverSessionIfNeeded();
   render();
   startClock();
@@ -742,4 +749,3 @@ function rolloverSessionIfNeeded() { if (state.session.dateKey===getTodayKey()) 
 function clampInt(v,min) { const n=Math.floor(Number(v)); return Number.isFinite(n)?Math.max(min,n):min; }
 function clampNumber(v,min,max,fb) { const n=Number(v); return Number.isFinite(n)?Math.min(Math.max(n,min),max):fb; }
 function registerServiceWorker() { if (!("serviceWorker" in navigator)) return; window.addEventListener("load",()=>{navigator.serviceWorker.register("./sw.js").catch(()=>{});}); }
-
