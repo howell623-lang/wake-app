@@ -330,9 +330,6 @@ function renderDashboard() {
   const themeClass = getThemeClass(status);
   const safeBtn = state.session.safeMode ? "开始新一局" : "我已安全 / 结束酒局";
   const planLabel = state.entitlement.plan === "pro" ? "Pro" : state.entitlement.plan === "supporter" ? "Supporter" : "Free";
-  const patrolCta = state.entitlement.plan === "free"
-    ? `<div class="pro-callout"><strong>升级 Pro</strong><p>解锁安全守候、多联系人、更强提醒策略、历史记录与导出。</p><button class="ghost-btn" data-action="open-upgrade" type="button">查看 Pro 权益</button></div>`
-    : "";
 
   return `<div class="market-shell ${themeClass}"><main class="app-shell">
     <section class="topbar">
@@ -375,7 +372,6 @@ function renderDashboard() {
       <div class="section-head"><h2>安全守候</h2><p>30 / 60 min</p></div>
       <strong data-bind="patrolHeadline">${metrics.patrolHeadline}</strong>
       <p class="profile-meta" data-bind="patrolDetail">${metrics.patrolDetail}</p>
-      ${patrolCta}
     </section>
 
     <section class="market-card news-card">
@@ -392,11 +388,13 @@ function renderDashboard() {
         <div><dt>体重</dt><dd>${state.config.weight} kg</dd></div>
         ${state.config.heightCm ? `<div><dt>身高</dt><dd>${state.config.heightCm} cm</dd></div>` : ""}
         ${state.config.age ? `<div><dt>年龄</dt><dd>${state.config.age}</dd></div>` : ""}
-      <div><dt>你的量</dt><dd>${formatGrams(state.config.alcoholThreshold)}</dd></div>
+        <div><dt>你的量</dt><dd>${formatGrams(state.config.alcoholThreshold)}</dd></div>
         <div><dt>当前版本</dt><dd>${planLabel}</dd></div>
         <div><dt>紧急联系人</dt><dd>${maskPhone(state.config.emergencyContact)}</dd></div>
       </dl>
     </section>
+
+    ${renderUpgradeCard()}
 
     <section class="disclaimer market-card">
       <div class="section-head"><h2>免责声明</h2><p>这不是医疗工具。</p></div>
@@ -415,13 +413,45 @@ function renderDashboard() {
 
 function renderCountdownStages(metrics) {
   if (metrics.totalAlcoholGrams <= 0) {
-    return `<div class="countdown-stages"><div class="stage-row"><span class="stage-label">尚未开始饮酒</span><span class="stage-time">—</span></div></div>`;
+    return `<div class="countdown-stages" data-bind="countdownStages"><div class="stage-row"><span class="stage-label">尚未开始饮酒</span><span class="stage-time">—</span></div></div>`;
   }
-  return `<div class="countdown-stages">
-    <div class="stage-row high"><span class="stage-emoji">🤯</span><span class="stage-label">晕得厉害</span><span class="stage-time" data-bind="tHigh">预计还要 ${formatDuration(metrics.tHigh)}</span></div>
-    <div class="stage-row mild"><span class="stage-emoji">😵‍💫</span><span class="stage-label">还有点晕</span><span class="stage-time" data-bind="tMild">预计还要 ${formatDuration(metrics.tMild)}</span></div>
-    <div class="stage-row clear"><span class="stage-emoji">😌</span><span class="stage-label">基本清醒了</span><span class="stage-time" data-bind="tClear">预计还要 ${formatDuration(metrics.tClear)}</span></div>
-  </div>`;
+  return `<div class="countdown-stages" data-bind="countdownStages">${renderCountdownStageRows(metrics)}</div>`;
+}
+
+function renderCountdownStageRows(metrics) {
+  return getCountdownStageItems(metrics).map((item) => (
+    `<div class="stage-row ${item.tone}">
+      <span class="stage-emoji">${item.emoji}</span>
+      <span class="stage-label">${item.label}</span>
+      <span class="stage-time">${item.done ? "已到这一步" : formatLiveCountdown(item.timeMs)}</span>
+    </div>`
+  )).join("");
+}
+
+function getCountdownStageItems(metrics) {
+  if (metrics.totalAlcoholGrams <= 0) {
+    return [{ tone: "", emoji: "—", label: "尚未开始饮酒", done: true, timeMs: 0 }];
+  }
+
+  const items = [];
+  if (metrics.tHigh > 0) items.push({ tone: "high", emoji: "🤯", label: "离清醒还差得远", timeMs: metrics.tHigh });
+  if (metrics.tMild > 0) items.push({ tone: "mild", emoji: "🙂", label: "快清醒了", timeMs: metrics.tMild });
+  if (metrics.tClear > 0) items.push({ tone: "clear", emoji: "😌", label: "基本清醒了", timeMs: metrics.tClear });
+
+  if (items.length > 0) return items;
+  return [{ tone: "clear", emoji: "😌", label: "已经清醒了", done: true, timeMs: 0 }];
+}
+
+function renderUpgradeCard() {
+  if (state.entitlement.plan !== "free") return "";
+  return `<section class="market-card upgrade-card">
+    <div class="section-head"><h2>升级 Pro</h2><p>保持现在的 UI，不打断记录主流程。</p></div>
+    <div class="pro-callout">
+      <strong>把真正兜底的能力放到付费层</strong>
+      <p>解锁安全守候、多联系人、更强提醒策略、历史记录 / 复盘、导出、自定义酒类。</p>
+      <button class="ghost-btn" data-action="open-upgrade" type="button">查看 Pro 权益</button>
+    </div>
+  </section>`;
 }
 
 function getSeverityLabel(metrics) {
@@ -558,9 +588,8 @@ function syncLiveMetrics() {
   const status = getStatus(metrics);
   bindText("totalAlcohol", formatGrams(metrics.totalAlcoholGrams));
   bindText("soberAt", metrics.soberAtTime ? formatDateTime(metrics.soberAtTime) : "—");
-  bindText("tHigh", `预计还要 ${formatDuration(metrics.tHigh)}`);
-  bindText("tMild", `预计还要 ${formatDuration(metrics.tMild)}`);
-  bindText("tClear", `预计还要 ${formatDuration(metrics.tClear)}`);
+  const countdownStages = document.querySelector("[data-bind='countdownStages']");
+  if (countdownStages) countdownStages.innerHTML = renderCountdownStageRows(metrics);
   bindText("lastDrinkAt", metrics.lastDrinkLabel);
   bindText("statusLabel", status.label);
   bindText("statusDetail", status.detail);
@@ -820,6 +849,17 @@ function loadDemoScenario() {
 function formatGrams(v) { return `${Number(v).toFixed(1)}g`; }
 function formatPercent(v) { return `${Number(v).toFixed(v%1===0?0:1)}%`; }
 function formatDuration(ms) { const m = Math.max(0, Math.ceil(ms/60000)); const h = Math.floor(m/60); const min = m%60; if (h===0) return `${min}分`; if (min===0) return `${h}小时`; return `${h}小时${min}分`; }
+function formatLiveCountdown(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const hh = String(hours).padStart(2, "0");
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  return days > 0 ? `${days}天 ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+}
 function formatPromptCountdown(endsAt) { return `${Math.max(0, Math.ceil((endsAt-Date.now())/1000))}s`; }
 function formatRatio(v) { return `喝到你平时量的 ${Math.round(Math.max(v,0)*100)}% 了`; }
 function formatDateTime(ts) { const d = new Date(ts); const t = new Date(); const f = new Intl.DateTimeFormat("zh-CN",{hour:"2-digit",minute:"2-digit",hour12:false}).format(d); if (d.toDateString()===t.toDateString()) return `今天 ${f}`; return new Intl.DateTimeFormat("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit",hour12:false}).format(d); }

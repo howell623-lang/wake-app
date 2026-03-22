@@ -548,6 +548,7 @@ select:focus-visible {
 .rail-card,
 .drinks-card,
 .profile-card,
+.upgrade-card,
 .disclaimer,
 .setup-card,
 .modal-panel {
@@ -1249,6 +1250,7 @@ select:focus-visible {
   font-weight: 720;
   font-variant-numeric: tabular-nums;
   color: var(--accent-strong);
+  white-space: nowrap;
   transition: color 400ms ease;
 }
 
