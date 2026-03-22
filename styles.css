@@ -262,6 +262,11 @@ select:focus-visible {
   color: #475467;
 }
 
+.status-chip.plan-chip {
+  background: rgba(17, 24, 39, 0.06);
+  color: #111827;
+}
+
 .status-chip {
   transition: background-color 400ms ease, color 400ms ease;
 }
@@ -642,6 +647,32 @@ select:focus-visible {
   font-size: 1.24rem;
   line-height: 1.1;
   letter-spacing: -0.03em;
+}
+
+.pro-callout,
+.settings-plan-card {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(255, 255, 255, 0.92));
+}
+
+.pro-callout strong,
+.settings-plan-card strong {
+  display: block;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.pro-callout p,
+.settings-plan-card p {
+  margin: 8px 0 0;
+}
+
+.pro-callout button,
+.settings-plan-card button {
+  margin-top: 12px;
 }
 
 .patrol-metrics {

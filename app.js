@@ -1,5 +1,22 @@
-const STORAGE_KEYS = { config: "wake-app-config", session: "wake-app-session" };
+const STORAGE_KEYS = { config: "wake-app-config", session: "wake-app-session", entitlement: "wake-app-entitlement" };
 const TESTING_RESET_ON_LOAD = true;
+const DEFAULT_ENTITLEMENT = { plan: "free" };
+const PLAN_COPY = {
+  free: {
+    label: "Free",
+    patrolHeadline: "安全守候为 Pro 功能",
+    patrolDetail: "免费版保留完整酒局记录和基础倒计时；守候提醒、多联系人和更强兜底策略需要升级。",
+  },
+  pro: {
+    label: "Pro",
+    patrolHeadline: "安全守候已开启",
+    patrolDetail: "达到你的量后，30 / 60 分钟无操作会进入提醒节奏。",
+  },
+};
+const PRICING_COPY = {
+  buyout: "一次买断，低价解锁完整兜底能力",
+  supporter: "免费使用基础功能，也可通过赞助支持继续迭代",
+};
 
 const DRINKS = {
   beer:    { id: "beer",    name: "啤酒", unit: "瓶", defaultVolumeMl: 500, defaultAbv: 5,  presetLabel: "500ml / 瓶" },
@@ -49,6 +66,7 @@ const app = document.querySelector("#app");
 const state = {
   config: loadConfig(),
   session: loadSession(),
+  entitlement: loadEntitlement(),
   ui: { modal: null, prompt: null, toast: null },
   timers: { warningTimeout: null, emergencyTimeout: null, promptTick: null, vibrationTick: null, clockTick: null, toastTick: null },
 };
@@ -85,6 +103,16 @@ function loadConfig() {
       emergencyContact: String(p.emergencyContact).trim(),
     };
   } catch { return null; }
+}
+
+function loadEntitlement() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEYS.entitlement);
+    if (!raw) return { ...DEFAULT_ENTITLEMENT };
+    const p = JSON.parse(raw);
+    if (!p || !["free", "pro", "supporter"].includes(p.plan)) return { ...DEFAULT_ENTITLEMENT };
+    return { plan: p.plan };
+  } catch { return { ...DEFAULT_ENTITLEMENT }; }
 }
 
 function createEmptySession() {
@@ -133,6 +161,10 @@ function saveSession() {
   window.localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(state.session));
 }
 
+function saveEntitlement() {
+  window.localStorage.setItem(STORAGE_KEYS.entitlement, JSON.stringify(state.entitlement));
+}
+
 /* ====== Algorithm Engine: TBW/Widmark Event-Stream Simulation ====== */
 
 function computeVd() {
@@ -174,12 +206,12 @@ function simulateBAC() {
   const nowMin = Math.ceil((now - earliestTs) / 60000);
 
   for (let t = 0; t <= totalMinutes; t++) {
-    const absTime = earliestTs + t * 60000;
     let inputPerMin = 0;
     for (const ev of events) {
       const evMin = (ev.timestamp - earliestTs) / 60000;
       if (t >= evMin && t < evMin + tauAbsMin) {
-        const Gi = ev.volumeMl * (ev.abv / 100) * ETHANOL_DENSITY * Fmeal;
+        const eventAbv = normalizeEventAbv(ev.abv);
+        const Gi = ev.volumeMl * eventAbv * ETHANOL_DENSITY * Fmeal;
         inputPerMin += Gi / tauAbsMin;
       }
     }
@@ -285,6 +317,10 @@ function renderDashboard() {
   const status = getStatus(metrics);
   const themeClass = getThemeClass(status);
   const safeBtn = state.session.safeMode ? "开始新一局" : "我已安全 / 结束酒局";
+  const planLabel = state.entitlement.plan === "pro" ? "Pro" : state.entitlement.plan === "supporter" ? "Supporter" : "Free";
+  const patrolCta = state.entitlement.plan === "free"
+    ? `<div class="pro-callout"><strong>升级 Pro</strong><p>解锁安全守候、多联系人、更强提醒策略、历史记录与导出。</p><button class="ghost-btn" data-action="open-upgrade" type="button">查看 Pro 权益</button></div>`
+    : "";
 
   return `<div class="market-shell ${themeClass}"><main class="app-shell">
     <section class="topbar">
@@ -296,6 +332,7 @@ function renderDashboard() {
         <button class="ghost-btn" data-action="load-demo" type="button">Demo</button>
         <button class="ghost-btn" data-action="open-settings" type="button">设置</button>
         <button class="ghost-btn" data-action="clear-session" type="button">清空</button>
+        <span class="status-chip plan-chip">${planLabel}</span>
         <span class="status-chip ${status.className}" data-bind="statusLabel">${status.label}</span>
       </div>
     </section>
@@ -326,6 +363,7 @@ function renderDashboard() {
       <div class="section-head"><h2>安全守候</h2><p>30 / 60 min</p></div>
       <strong data-bind="patrolHeadline">${metrics.patrolHeadline}</strong>
       <p class="profile-meta" data-bind="patrolDetail">${metrics.patrolDetail}</p>
+      ${patrolCta}
     </section>
 
     <section class="market-card news-card">
@@ -342,7 +380,8 @@ function renderDashboard() {
         <div><dt>体重</dt><dd>${state.config.weight} kg</dd></div>
         ${state.config.heightCm ? `<div><dt>身高</dt><dd>${state.config.heightCm} cm</dd></div>` : ""}
         ${state.config.age ? `<div><dt>年龄</dt><dd>${state.config.age}</dd></div>` : ""}
-        <div><dt>你的量</dt><dd>${formatGrams(state.config.alcoholThreshold)}</dd></div>
+      <div><dt>你的量</dt><dd>${formatGrams(state.config.alcoholThreshold)}</dd></div>
+        <div><dt>当前版本</dt><dd>${planLabel}</dd></div>
         <div><dt>紧急联系人</dt><dd>${maskPhone(state.config.emergencyContact)}</dd></div>
       </dl>
     </section>
@@ -437,8 +476,30 @@ function renderModal() {
         <div class="field"><label for="settings-age">年龄</label><input id="settings-age" name="age" type="number" min="16" max="120" step="1" value="${c.age || ""}" placeholder="选填" /></div>
         <div class="field"><label for="settings-threshold">你的量</label><input id="settings-threshold" name="alcoholThreshold" type="number" min="5" max="500" step="0.1" value="${c.alcoholThreshold}" required /><div class="field-hint">大概喝到这里，你会明显上头（纯酒精 g）</div></div>
         <div class="field"><label for="settings-contact">紧急联系人手机号</label><input id="settings-contact" name="emergencyContact" type="tel" inputmode="tel" value="${c.emergencyContact}" required /></div>
+        <div class="settings-plan-card"><strong>Pro 权益</strong><p>安全守候、多联系人、更强提醒策略、历史记录 / 复盘、导出、自定义酒类。当前保持免费版可传播，不在首次进入时拦截。</p><button class="ghost-btn" data-action="open-upgrade" type="button">查看升级说明</button></div>
         <div class="modal-actions"><button class="secondary-btn" data-action="close-modal" type="button">取消</button><button class="primary-btn" type="submit">保存设置</button></div>
       </form></section></div>`;
+  }
+
+  if (state.ui.modal.type === "upgrade") {
+    return `<div class="modal-backdrop"><section class="modal-panel">
+      <h2>Pro 权益</h2><p>保持现在的记录体验不变，把真正兜底的能力放到付费层。</p>
+      <div class="settings-plan-card">
+        <strong>Free</strong>
+        <p>完整记录酒局，查看基础倒计时和上头程度，不在首次进入时拦截。</p>
+      </div>
+      <div class="settings-plan-card">
+        <strong>Pro</strong>
+        <p>安全守候、多联系人、更强提醒策略、更精细算法、历史记录 / 复盘、导出、自定义酒类。</p>
+      </div>
+      <div class="settings-plan-card">
+        <strong>定价方向</strong>
+        <p>${PRICING_COPY.buyout}</p>
+        <p>${PRICING_COPY.supporter}</p>
+        <p>iPhone 原生版将预留 iOS 内购路径。</p>
+      </div>
+      <div class="modal-actions"><button class="secondary-btn" data-action="close-modal" type="button">先继续免费用</button><button class="primary-btn" data-action="upgrade-coming-soon" type="button">记下这个入口</button></div>
+    </section></div>`;
   }
 
   if (state.ui.modal.type === "abv") {
@@ -514,6 +575,7 @@ function bindText(name, value) {
 }
 
 function getPatrolStatus({ totalAlcoholGrams, hasDrinks }) {
+  if (!isProPlan()) return { headline: PLAN_COPY.free.patrolHeadline, detail: PLAN_COPY.free.patrolDetail };
   if (state.session.safeMode) return { headline: "守候已关闭", detail: "你已手动结束本次酒局。" };
   if (!hasDrinks) return { headline: "尚未启动", detail: "开始记录饮酒后才会计算守候节奏。" };
   if (state.ui.prompt) return { headline: state.ui.prompt.level === "warning" ? "预警拦截中" : "紧急拦截中", detail: `${formatPromptCountdown(state.ui.prompt.endsAt)} 后尝试唤起短信。` };
@@ -547,6 +609,8 @@ document.addEventListener("click", (event) => {
   const action = target.dataset.action;
 
   if (action === "open-settings") { state.ui.modal = { type: "settings" }; render(); return; }
+  if (action === "open-upgrade") { state.ui.modal = { type: "upgrade" }; render(); return; }
+  if (action === "upgrade-coming-soon") { state.ui.modal = null; showToast("已记录 Pro 入口，后续接真实买断/赞助解锁。"); return; }
   if (action === "load-demo") { loadDemoScenario(); return; }
   if (action === "close-modal") { state.ui.modal = null; render(); return; }
   if (action === "clear-session") { state.ui.modal = { type: "clear-confirm" }; render(); return; }
@@ -641,6 +705,7 @@ function applyDrinkChange(drinkId, delta) {
 }
 
 function maybeTriggerSafeReport() {
+  if (!isProPlan()) return;
   if (!state.config || state.session.safeMode || state.session.safeReportSent) return;
   const metrics = getMetrics();
   if (metrics.totalAlcoholGrams > 0 && metrics.totalAlcoholGrams >= state.config.alcoholThreshold * 0.5) {
@@ -650,6 +715,7 @@ function maybeTriggerSafeReport() {
 
 function schedulePatrol() {
   clearPatrolTimers();
+  if (!isProPlan()) return;
   if (!state.config || state.session.safeMode) return;
   const metrics = getMetrics();
   if (metrics.totalAlcoholGrams < state.config.alcoholThreshold) return;
@@ -664,6 +730,7 @@ function schedulePatrol() {
 function clearPatrolTimers() { clearTimeout(state.timers.warningTimeout); clearTimeout(state.timers.emergencyTimeout); state.timers.warningTimeout = null; state.timers.emergencyTimeout = null; }
 
 function triggerPrompt(level) {
+  if (!isProPlan()) return;
   if (state.ui.prompt || state.session.safeMode) return;
   const m = getMetrics(); if (m.totalAlcoholGrams < state.config.alcoholThreshold) return;
   if (level === "warning" && state.session.warningHandled) return;
@@ -688,6 +755,7 @@ function composeMessage(level) {
 }
 
 async function dispatchSafetyMessage(level) {
+  if (!isProPlan() && level !== "safe") return;
   if (!state.config) return;
   const message = composeMessage(level);
   state.session.messageLog.unshift({ type: level, at: Date.now(), message });
@@ -713,6 +781,8 @@ function vibrate(level) { if (navigator.vibrate) navigator.vibrate(ALERT_RULES[l
 function loadDemoScenario() {
   clearPrompt(); clearPatrolTimers();
   state.config = { gender: "male", weight: 78, heightCm: 175, age: 35, alcoholThreshold: 50, emergencyContact: "13800138000" };
+  state.entitlement = { ...DEFAULT_ENTITLEMENT };
+  saveEntitlement();
   const now = Date.now();
   const s = createEmptySession();
   s.startedAt = now - 45 * 60000; s.lastDrinkTime = now - 12 * 60000;
@@ -748,4 +818,6 @@ function getTodayKey() { const n=new Date(); return `${n.getFullYear()}-${String
 function rolloverSessionIfNeeded() { if (state.session.dateKey===getTodayKey()) return false; state.session=createEmptySession(); saveSession(); return true; }
 function clampInt(v,min) { const n=Math.floor(Number(v)); return Number.isFinite(n)?Math.max(min,n):min; }
 function clampNumber(v,min,max,fb) { const n=Number(v); return Number.isFinite(n)?Math.min(Math.max(n,min),max):fb; }
+function normalizeEventAbv(v) { const n = Number(v); if (!Number.isFinite(n) || n <= 0) return 0; return n > 1 ? n / 100 : n; }
+function isProPlan() { return state.entitlement.plan === "pro"; }
 function registerServiceWorker() { if (!("serviceWorker" in navigator)) return; window.addEventListener("load",()=>{navigator.serviceWorker.register("./sw.js").catch(()=>{});}); }
