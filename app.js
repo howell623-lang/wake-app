@@ -412,20 +412,28 @@ function renderDashboard() {
 }
 
 function renderCountdownStages(metrics) {
-  if (metrics.totalAlcoholGrams <= 0) {
-    return `<div class="countdown-stages" data-bind="countdownStages"><div class="stage-row"><span class="stage-label">尚未开始饮酒</span><span class="stage-time">—</span></div></div>`;
-  }
-  return `<div class="countdown-stages" data-bind="countdownStages">${renderCountdownStageRows(metrics)}</div>`;
-}
-
-function renderCountdownStageRows(metrics) {
-  return getCountdownStageItems(metrics).map((item) => (
-    `<div class="stage-row ${item.tone}">
-      <span class="stage-emoji">${item.emoji}</span>
-      <span class="stage-label">${item.label}</span>
-      <span class="stage-time">${item.done ? "已到这一步" : formatLiveCountdown(item.timeMs)}</span>
-    </div>`
-  )).join("");
+  return `<div class="countdown-stages">
+    <div class="stage-row" data-stage="empty">
+      <span class="stage-emoji">—</span>
+      <span class="stage-label">尚未开始饮酒</span>
+      <span class="stage-time">—</span>
+    </div>
+    <div class="stage-row high" data-stage="high">
+      <span class="stage-emoji">🤯</span>
+      <span class="stage-label">离清醒还差得远</span>
+      <span class="stage-time">00:00:00</span>
+    </div>
+    <div class="stage-row mild" data-stage="mild">
+      <span class="stage-emoji">🙂</span>
+      <span class="stage-label">快清醒了</span>
+      <span class="stage-time">00:00:00</span>
+    </div>
+    <div class="stage-row clear" data-stage="clear">
+      <span class="stage-emoji">😌</span>
+      <span class="stage-label">基本清醒了</span>
+      <span class="stage-time">00:00:00</span>
+    </div>
+  </div>`;
 }
 
 function getCountdownStageItems(metrics) {
@@ -588,8 +596,7 @@ function syncLiveMetrics() {
   const status = getStatus(metrics);
   bindText("totalAlcohol", formatGrams(metrics.totalAlcoholGrams));
   bindText("soberAt", metrics.soberAtTime ? formatDateTime(metrics.soberAtTime) : "—");
-  const countdownStages = document.querySelector("[data-bind='countdownStages']");
-  if (countdownStages) countdownStages.innerHTML = renderCountdownStageRows(metrics);
+  syncCountdownStages(metrics);
   bindText("lastDrinkAt", metrics.lastDrinkLabel);
   bindText("statusLabel", status.label);
   bindText("statusDetail", status.detail);
@@ -613,6 +620,29 @@ function syncToast() {
 function bindText(name, value) {
   const el = document.querySelector(`[data-bind='${name}']`);
   if (el) el.textContent = value;
+}
+
+function syncCountdownStages(metrics) {
+  const rows = {
+    empty: document.querySelector("[data-stage='empty']"),
+    high: document.querySelector("[data-stage='high']"),
+    mild: document.querySelector("[data-stage='mild']"),
+    clear: document.querySelector("[data-stage='clear']"),
+  };
+  Object.values(rows).forEach((row) => { if (row) row.hidden = true; });
+
+  const items = getCountdownStageItems(metrics);
+  for (const item of items) {
+    const row = rows[item.tone || "empty"];
+    if (!row) continue;
+    row.hidden = false;
+    const label = row.querySelector(".stage-label");
+    const time = row.querySelector(".stage-time");
+    const emoji = row.querySelector(".stage-emoji");
+    if (label) label.textContent = item.label;
+    if (time) time.textContent = item.done ? "已到这一步" : formatLiveCountdown(item.timeMs);
+    if (emoji) emoji.textContent = item.emoji;
+  }
 }
 
 function getPatrolStatus({ totalAlcoholGrams, hasDrinks }) {
