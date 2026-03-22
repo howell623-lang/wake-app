@@ -266,33 +266,15 @@ select:focus-visible {
   transition: background-color 400ms ease, color 400ms ease;
 }
 
-.market-tabs {
+/* tabs removed in V1 */
+
+.app-shell {
   display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding: 18px 4px 14px;
-  color: #667085;
-}
-
-.market-tab {
-  white-space: nowrap;
-  padding: 10px 12px;
-  border-bottom: 2px solid transparent;
-  font-size: 0.98rem;
-  font-weight: 620;
-}
-
-.market-tab.active {
-  color: var(--ink);
-  border-bottom-color: var(--accent-strong);
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 0.9fr);
+  flex-direction: column;
   gap: 18px;
-  align-items: start;
 }
+
+/* single-column layout (was 2-col grid) */
 
 .market-card {
   border: 1px solid var(--line);
@@ -326,13 +308,16 @@ select:focus-visible {
   font-weight: 620;
 }
 
-.hero-card h1,
 .setup-card h1 {
-  margin: 10px 0 0;
   font-size: clamp(2.3rem, 4.4vw, 3.5rem);
   line-height: 0.96;
   letter-spacing: -0.05em;
   font-weight: 780;
+  margin: 10px 24px 0;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .tagline {
@@ -1194,6 +1179,80 @@ select:focus-visible {
     padding-inline: 12px;
   }
 }
+
+/* ===== V1 New Components ===== */
+
+.setup-subtitle {
+  font-size: 1.1rem;
+  font-weight: 640;
+  color: #8a94a6;
+  margin: 2px 24px 12px;
+  letter-spacing: 0.02em;
+}
+
+.countdown-card {
+  padding: 24px;
+}
+
+.countdown-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 18px;
+}
+
+.stage-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  transition: background-color 200ms ease;
+}
+
+.stage-row:last-child { border-bottom: none; }
+.stage-row:hover { background-color: rgba(248, 250, 252, 0.6); }
+.stage-emoji { font-size: 1.4rem; flex-shrink: 0; }
+.stage-label { font-weight: 660; flex: 1 1 auto; }
+.stage-time {
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-strong);
+  transition: color 400ms ease;
+}
+
+.stage-row.high .stage-time { color: #dc2626; }
+.stage-row.mild .stage-time { color: #ea580c; }
+.stage-row.clear .stage-time { color: #16a34a; }
+
+.countdown-meta {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.severity-card {
+  padding: 24px;
+  text-align: center;
+}
+
+.severity-value {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 780;
+  color: var(--accent-strong);
+  transition: color 400ms ease;
+  line-height: 1.2;
+}
+
+.severity-ratio {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent-strong);
+  letter-spacing: -0.03em;
+  margin: 8px 0 12px;
+  transition: color 400ms ease;
+}
+
+.patrol-card { padding: 24px; }
 
 /* ===== Reduced motion ===== */
 
