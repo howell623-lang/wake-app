@@ -196,7 +196,19 @@ function simulateBAC() {
 
   const earliestTs = Math.min(...events.map((e) => e.timestamp));
   const now = Date.now();
-  const totalMinutes = Math.ceil((now - earliestTs) / 60000) + 720;
+  const totalAbsorptionMinutes = Math.max(...events.map((e) => {
+    const evMin = (e.timestamp - earliestTs) / 60000;
+    return evMin + tauAbsMin;
+  }));
+  const totalAlcoholInputGrams = events.reduce((sum, ev) => {
+    const eventAbv = normalizeEventAbv(ev.abv);
+    return sum + ev.volumeMl * eventAbv * ETHANOL_DENSITY * Fmeal;
+  }, 0);
+  const estimatedClearMinutes = Math.ceil(totalAlcoholInputGrams / Math.max(elimGPerMin, 0.01)) + Math.ceil(totalAbsorptionMinutes) + 180;
+  const totalMinutes = Math.max(
+    Math.ceil((now - earliestTs) / 60000) + 720,
+    estimatedClearMinutes,
+  );
 
   let bodyAlcG = 0;
   let peakBAC = 0;
@@ -234,7 +246,7 @@ function simulateBAC() {
 
   const soberAtTime = tClear !== null && tClear > 0 ? now + tClear : (currentBAC > 0 ? now : null);
 
-  return { currentBAC, tHigh: tHigh || 0, tMild: tMild || 0, tClear: tClear || 0, soberAtTime, peakBAC };
+  return { currentBAC, tHigh: tHigh ?? 0, tMild: tMild ?? 0, tClear: tClear ?? 0, soberAtTime, peakBAC };
 }
 
 function getMetrics() {
@@ -820,4 +832,20 @@ function clampInt(v,min) { const n=Math.floor(Number(v)); return Number.isFinite
 function clampNumber(v,min,max,fb) { const n=Number(v); return Number.isFinite(n)?Math.min(Math.max(n,min),max):fb; }
 function normalizeEventAbv(v) { const n = Number(v); if (!Number.isFinite(n) || n <= 0) return 0; return n > 1 ? n / 100 : n; }
 function isProPlan() { return state.entitlement.plan === "pro"; }
-function registerServiceWorker() { if (!("serviceWorker" in navigator)) return; window.addEventListener("load",()=>{navigator.serviceWorker.register("./sw.js").catch(()=>{});}); }
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  window.addEventListener("load", async () => {
+    if (TESTING_RESET_ON_LOAD) {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((reg) => reg.unregister()));
+        if ("caches" in window) {
+          const keys = await window.caches.keys();
+          await Promise.all(keys.map((key) => window.caches.delete(key)));
+        }
+      } catch {}
+      return;
+    }
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
