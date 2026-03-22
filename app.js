@@ -212,10 +212,8 @@ function simulateBAC() {
 
   let bodyAlcG = 0;
   let peakBAC = 0;
-  let currentBAC = 0;
-  let tHigh = null, tMild = null, tClear = null;
-  let passedNow = false;
   const nowMin = Math.ceil((now - earliestTs) / 60000);
+  const bacTrace = [];
 
   for (let t = 0; t <= totalMinutes; t++) {
     let inputPerMin = 0;
@@ -229,24 +227,18 @@ function simulateBAC() {
     }
     bodyAlcG = Math.max(0, bodyAlcG + inputPerMin - elimGPerMin);
     const bac = VdL > 0 ? bodyAlcG / (10 * VdL) : 0;
+    bacTrace.push(bac);
     if (bac > peakBAC) peakBAC = bac;
-
-    if (t === nowMin) { currentBAC = bac; passedNow = true; }
-
-    if (passedNow && t > nowMin) {
-      if (tHigh === null && bac <= METABOLISM.T_high) tHigh = (t - nowMin) * 60000;
-      if (tMild === null && bac <= METABOLISM.T_mild) tMild = (t - nowMin) * 60000;
-      if (tClear === null && bac <= METABOLISM.T_clear) { tClear = (t - nowMin) * 60000; break; }
-    }
   }
 
-  if (currentBAC <= METABOLISM.T_high) tHigh = 0;
-  if (currentBAC <= METABOLISM.T_mild) tMild = 0;
-  if (currentBAC <= METABOLISM.T_clear) tClear = 0;
+  const currentBAC = bacTrace[Math.min(nowMin, bacTrace.length - 1)] ?? 0;
+  const tHigh = getTimeUntilStableBelowThreshold(bacTrace, nowMin, METABOLISM.T_high);
+  const tMild = getTimeUntilStableBelowThreshold(bacTrace, nowMin, METABOLISM.T_mild);
+  const tClear = getTimeUntilStableBelowThreshold(bacTrace, nowMin, METABOLISM.T_clear);
 
-  const soberAtTime = tClear !== null && tClear > 0 ? now + tClear : (currentBAC > 0 ? now : null);
+  const soberAtTime = events.length > 0 ? now + tClear : null;
 
-  return { currentBAC, tHigh: tHigh ?? 0, tMild: tMild ?? 0, tClear: tClear ?? 0, soberAtTime, peakBAC };
+  return { currentBAC, tHigh, tMild, tClear, soberAtTime, peakBAC };
 }
 
 function getMetrics() {
@@ -356,7 +348,7 @@ function renderDashboard() {
       ${renderCountdownStages(metrics)}
       <div class="countdown-meta">
         <div class="stat-row"><span>当前累计纯酒精</span><strong data-bind="totalAlcohol">${formatGrams(metrics.totalAlcoholGrams)}</strong></div>
-        <div class="stat-row"><span>大概几点缓过来</span><strong data-bind="soberAt">${metrics.soberAtTime ? formatDateTime(metrics.soberAtTime) : "—"}</strong></div>
+        <div class="stat-row"><span>大概几点缓过来</span><strong data-bind="soberAt">${metrics.soberAtTime ? formatTargetTime(metrics.soberAtTime) : "—"}</strong></div>
         <div class="stat-row"><span data-bind="lastDrinkAt">${metrics.lastDrinkLabel}</span></div>
       </div>
     </section>
@@ -416,22 +408,22 @@ function renderCountdownStages(metrics) {
     <div class="stage-row" data-stage="empty">
       <span class="stage-emoji">—</span>
       <span class="stage-label">尚未开始饮酒</span>
-      <span class="stage-time">—</span>
+      <div class="stage-timing"><span class="stage-time">—</span><small class="stage-clock">—</small></div>
     </div>
     <div class="stage-row high" data-stage="high">
       <span class="stage-emoji">🤯</span>
       <span class="stage-label">离清醒还差得远</span>
-      <span class="stage-time">00:00:00</span>
+      <div class="stage-timing"><span class="stage-time">00:00:00</span><small class="stage-clock">约 —</small></div>
     </div>
     <div class="stage-row mild" data-stage="mild">
       <span class="stage-emoji">🙂</span>
       <span class="stage-label">快清醒了</span>
-      <span class="stage-time">00:00:00</span>
+      <div class="stage-timing"><span class="stage-time">00:00:00</span><small class="stage-clock">约 —</small></div>
     </div>
     <div class="stage-row clear" data-stage="clear">
       <span class="stage-emoji">😌</span>
       <span class="stage-label">基本清醒了</span>
-      <span class="stage-time">00:00:00</span>
+      <div class="stage-timing"><span class="stage-time">00:00:00</span><small class="stage-clock">约 —</small></div>
     </div>
   </div>`;
 }
@@ -595,7 +587,7 @@ function syncLiveMetrics() {
   const metrics = getMetrics();
   const status = getStatus(metrics);
   bindText("totalAlcohol", formatGrams(metrics.totalAlcoholGrams));
-  bindText("soberAt", metrics.soberAtTime ? formatDateTime(metrics.soberAtTime) : "—");
+  bindText("soberAt", metrics.soberAtTime ? formatTargetTime(metrics.soberAtTime) : "—");
   syncCountdownStages(metrics);
   bindText("lastDrinkAt", metrics.lastDrinkLabel);
   bindText("statusLabel", status.label);
@@ -629,19 +621,26 @@ function syncCountdownStages(metrics) {
     mild: document.querySelector("[data-stage='mild']"),
     clear: document.querySelector("[data-stage='clear']"),
   };
-  Object.values(rows).forEach((row) => { if (row) row.hidden = true; });
+  Object.values(rows).forEach((row) => {
+    if (!row) return;
+    row.hidden = true;
+    row.setAttribute("aria-hidden", "true");
+  });
 
   const items = getCountdownStageItems(metrics);
   for (const item of items) {
     const row = rows[item.tone || "empty"];
     if (!row) continue;
     row.hidden = false;
+    row.setAttribute("aria-hidden", "false");
     const label = row.querySelector(".stage-label");
     const time = row.querySelector(".stage-time");
     const emoji = row.querySelector(".stage-emoji");
+    const clock = row.querySelector(".stage-clock");
     if (label) label.textContent = item.label;
     if (time) time.textContent = item.done ? "已到这一步" : formatLiveCountdown(item.timeMs);
     if (emoji) emoji.textContent = item.emoji;
+    if (clock) clock.textContent = item.done ? "约 现在" : `约 ${formatTargetTime(Date.now() + item.timeMs)}`;
   }
 }
 
@@ -893,6 +892,16 @@ function formatLiveCountdown(ms) {
 function formatPromptCountdown(endsAt) { return `${Math.max(0, Math.ceil((endsAt-Date.now())/1000))}s`; }
 function formatRatio(v) { return `喝到你平时量的 ${Math.round(Math.max(v,0)*100)}% 了`; }
 function formatDateTime(ts) { const d = new Date(ts); const t = new Date(); const f = new Intl.DateTimeFormat("zh-CN",{hour:"2-digit",minute:"2-digit",hour12:false}).format(d); if (d.toDateString()===t.toDateString()) return `今天 ${f}`; return new Intl.DateTimeFormat("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit",hour12:false}).format(d); }
+function formatTargetTime(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const hhmm = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (d.toDateString() === now.toDateString()) return `今天 ${hhmm}`;
+  if (d.toDateString() === tomorrow.toDateString()) return `明天 ${hhmm}`;
+  return new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+}
 function formatGender(g) { return g==="male"?"男":g==="female"?"女":"其他"; }
 function maskPhone(p) { const v=String(p||""); return v.length<7?v:`${v.slice(0,3)}****${v.slice(-4)}`; }
 function truncateText(t,n) { const v=String(t||""); return v.length<=n?v:`${v.slice(0,n)}...`; }
@@ -900,6 +909,13 @@ function getTodayKey() { const n=new Date(); return `${n.getFullYear()}-${String
 function rolloverSessionIfNeeded() { if (state.session.dateKey===getTodayKey()) return false; state.session=createEmptySession(); saveSession(); return true; }
 function clampInt(v,min) { const n=Math.floor(Number(v)); return Number.isFinite(n)?Math.max(min,n):min; }
 function clampNumber(v,min,max,fb) { const n=Number(v); return Number.isFinite(n)?Math.min(Math.max(n,min),max):fb; }
+function getTimeUntilStableBelowThreshold(bacTrace, nowMin, threshold) {
+  let lastAboveIndex = -1;
+  for (let i = Math.max(nowMin, 0); i < bacTrace.length; i++) {
+    if (bacTrace[i] > threshold) lastAboveIndex = i;
+  }
+  return lastAboveIndex === -1 ? 0 : (lastAboveIndex - nowMin + 1) * 60000;
+}
 function normalizeEventAbv(v) { const n = Number(v); if (!Number.isFinite(n) || n <= 0) return 0; return n > 1 ? n / 100 : n; }
 function isProPlan() { return state.entitlement.plan === "pro"; }
 function registerServiceWorker() {
