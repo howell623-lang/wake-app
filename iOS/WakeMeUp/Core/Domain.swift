@@ -49,6 +49,7 @@ enum DrinkType: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
     var nameKey: String { "drink.\(rawValue).name" }
     var unitKey: String { "drink.\(rawValue).unit" }
+    var countUnitKey: String { "drink.\(rawValue).count_unit" }
 
     var defaultVolumeML: Int {
         switch self {
@@ -222,6 +223,14 @@ struct EntitlementState: Codable, Equatable {
     var plan: EntitlementPlan = .free
 }
 
+enum SessionEndReason: String, Codable {
+    case finished
+    case cleared
+    case rollover
+
+    var titleKey: String { "history.reason.\(rawValue)" }
+}
+
 struct SessionMetrics: Equatable {
     var totalAlcoholGrams: Double
     var ratio: Double
@@ -254,3 +263,36 @@ struct CountdownStageItem: Identifiable, Equatable {
     var isReached: Bool
 }
 
+struct SessionArchive: Codable, Identifiable, Equatable {
+    var id: UUID
+    var dateKey: String
+    var startedAt: Date?
+    var endedAt: Date
+    var totalAlcoholGrams: Double
+    var peakBAC: Double
+    var soberAt: Date?
+    var summary: String
+    var endReason: SessionEndReason
+
+    init(
+        id: UUID = UUID(),
+        dateKey: String,
+        startedAt: Date?,
+        endedAt: Date,
+        totalAlcoholGrams: Double,
+        peakBAC: Double,
+        soberAt: Date?,
+        summary: String,
+        endReason: SessionEndReason
+    ) {
+        self.id = id
+        self.dateKey = dateKey
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.totalAlcoholGrams = totalAlcoholGrams
+        self.peakBAC = peakBAC
+        self.soberAt = soberAt
+        self.summary = summary
+        self.endReason = endReason
+    }
+}

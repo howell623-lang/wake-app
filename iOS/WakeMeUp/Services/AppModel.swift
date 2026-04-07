@@ -17,8 +17,11 @@ final class AppModel: ObservableObject {
 
     @Published var showUpgrade = false
     @Published var showSetupEditor = false
+    @Published var showSettings = false
+    @Published var showHistory = false
     @Published var notificationsEnabled = false
     @Published var purchaseMessage: String?
+    @Published var history: [SessionArchive]
 
     private let defaults = UserDefaults.standard
     private let engine = SobrietyEngine()
@@ -29,12 +32,14 @@ final class AppModel: ObservableObject {
         static let profile = "wake.ios.profile"
         static let session = "wake.ios.session"
         static let entitlement = "wake.ios.entitlement"
+        static let history = "wake.ios.history"
     }
 
     init() {
         profile = Self.load(UserProfile.self, forKey: StorageKey.profile)
         session = Self.load(SessionState.self, forKey: StorageKey.session) ?? .empty()
         entitlement = Self.load(EntitlementState.self, forKey: StorageKey.entitlement) ?? EntitlementState()
+        history = Self.load([SessionArchive].self, forKey: StorageKey.history) ?? []
         rolloverIfNeeded()
         session.normalized()
     }
@@ -48,11 +53,31 @@ final class AppModel: ObservableObject {
     }
 
     var metrics: SessionMetrics {
-        engine.compute(profile: profile, session: session, now: .now)
+        metrics(at: .now)
     }
 
     var drinkEntries: [DrinkEntry] {
         DrinkType.allCases.map { session.entry(for: $0) }
+    }
+
+    var currentSessionSummary: String {
+        let parts = session.drinks.compactMap { entry -> String? in
+            guard entry.count > 0 else { return nil }
+            return L10n.format("history.summary.entry", L10n.string(entry.type.nameKey), L10n.formatCountUnit(entry.count, unitKey: entry.type.countUnitKey))
+        }
+        return parts.isEmpty ? L10n.string("history.summary.empty") : parts.joined(separator: " · ")
+    }
+
+    var currentMealStateTitle: String {
+        L10n.string((session.mealState ?? .normalMeal).titleKey)
+    }
+
+    var preferredLanguageLabel: String {
+        let identifiers = Locale.preferredLanguages.prefix(2)
+        let localized = identifiers.compactMap { identifier -> String? in
+            Locale.current.localizedString(forIdentifier: identifier)
+        }
+        return localized.joined(separator: " / ")
     }
 
     var planTitle: String {
@@ -91,7 +116,15 @@ final class AppModel: ObservableObject {
     }
 
     var stageItems: [CountdownStageItem] {
-        let currentMetrics = metrics
+        stageItems(at: .now)
+    }
+
+    func metrics(at now: Date) -> SessionMetrics {
+        engine.compute(profile: profile, session: session, now: now)
+    }
+
+    func stageItems(at now: Date) -> [CountdownStageItem] {
+        let currentMetrics = metrics(at: now)
         if currentMetrics.totalAlcoholGrams <= 0 {
             return [
                 CountdownStageItem(
@@ -114,7 +147,7 @@ final class AppModel: ObservableObject {
                     symbol: "🤯",
                     titleKey: "countdown.far",
                     remaining: currentMetrics.tHigh,
-                    targetTime: Date().addingTimeInterval(currentMetrics.tHigh),
+                    targetTime: now.addingTimeInterval(currentMetrics.tHigh),
                     tone: .high,
                     isReached: false
                 )
@@ -127,7 +160,7 @@ final class AppModel: ObservableObject {
                     symbol: "🙂",
                     titleKey: "countdown.near",
                     remaining: currentMetrics.tMild,
-                    targetTime: Date().addingTimeInterval(currentMetrics.tMild),
+                    targetTime: now.addingTimeInterval(currentMetrics.tMild),
                     tone: .mild,
                     isReached: false
                 )
@@ -154,7 +187,7 @@ final class AppModel: ObservableObject {
                     symbol: "😌",
                     titleKey: "countdown.done",
                     remaining: 0,
-                    targetTime: Date(),
+                    targetTime: now,
                     tone: .clear,
                     isReached: true
                 )
@@ -259,7 +292,11 @@ final class AppModel: ObservableObject {
     }
 
     func clearSession() {
+        archiveCurrentSession(reason: .cleared)
         session = .empty()
+        Task {
+            await notificationService.clearPatrolNotifications()
+        }
     }
 
     func endOrRestartSession() {
@@ -268,6 +305,7 @@ final class AppModel: ObservableObject {
             return
         }
         session.isEnded = true
+        archiveCurrentSession(reason: .finished)
         Task {
             await notificationService.clearPatrolNotifications()
         }
@@ -285,13 +323,22 @@ final class AppModel: ObservableObject {
         showSetupEditor = true
     }
 
+    func openSettings() {
+        showSettings = true
+    }
+
+    func openHistory() {
+        showHistory = true
+    }
+
     func purchasePro() async {
         let purchased = await monetizationService.purchasePro()
         if purchased {
             entitlement.plan = .pro
             purchaseMessage = L10n.string("upgrade.purchase.success")
+            await refreshPatrolReminders()
         } else {
-            purchaseMessage = monetizationService.lastErrorMessage ?? L10n.string("upgrade.purchase.pending")
+            purchaseMessage = monetizationService.lastErrorMessage ?? L10n.string("upgrade.products.unavailable")
         }
     }
 
@@ -299,6 +346,7 @@ final class AppModel: ObservableObject {
         if await monetizationService.restorePurchases() {
             entitlement.plan = .pro
             purchaseMessage = L10n.string("upgrade.restore.success")
+            await refreshPatrolReminders()
         } else {
             purchaseMessage = monetizationService.lastErrorMessage ?? L10n.string("upgrade.restore.none")
         }
@@ -306,6 +354,7 @@ final class AppModel: ObservableObject {
 
     func requestNotifications() async {
         notificationsEnabled = await notificationService.requestAuthorization()
+        await refreshPatrolReminders()
     }
 
     private func refreshPatrolReminders() async {
@@ -324,7 +373,11 @@ final class AppModel: ObservableObject {
     private func rolloverIfNeeded() {
         let today = SessionState.dateKey(for: .now)
         guard session.dateKey != today else { return }
+        archiveCurrentSession(reason: .rollover)
         session = .empty()
+        Task {
+            await notificationService.clearPatrolNotifications()
+        }
     }
 
     private func saveProfile() {
@@ -339,6 +392,10 @@ final class AppModel: ObservableObject {
         Self.save(entitlement, forKey: StorageKey.entitlement, defaults: defaults)
     }
 
+    private func saveHistory() {
+        Self.save(history, forKey: StorageKey.history, defaults: defaults)
+    }
+
     private static func load<T: Decodable>(_ type: T.Type, forKey key: String) -> T? {
         guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(type, from: data)
@@ -351,5 +408,22 @@ final class AppModel: ObservableObject {
             defaults.removeObject(forKey: key)
         }
     }
-}
 
+    private func archiveCurrentSession(reason: SessionEndReason, endedAt: Date = .now) {
+        guard session.drinkEvents.contains(where: { $0.action == .add }) else { return }
+        let metrics = self.metrics(at: endedAt)
+        let archive = SessionArchive(
+            dateKey: session.dateKey,
+            startedAt: session.startedAt,
+            endedAt: endedAt,
+            totalAlcoholGrams: metrics.totalAlcoholGrams,
+            peakBAC: metrics.peakBAC,
+            soberAt: metrics.soberAt,
+            summary: currentSessionSummary,
+            endReason: reason
+        )
+        history.insert(archive, at: 0)
+        history = Array(history.prefix(30))
+        saveHistory()
+    }
+}
