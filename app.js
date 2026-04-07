@@ -1,6 +1,7 @@
-const STORAGE_KEYS = { config: "wake-app-config", session: "wake-app-session", entitlement: "wake-app-entitlement" };
-const TESTING_RESET_ON_LOAD = true;
-const DEFAULT_ENTITLEMENT = { plan: "free" };
+const TESTING_RESET_ON_LOAD = false;
+const WakeStorage = window.WakeStorage;
+const STORAGE_KEYS = WakeStorage.STORAGE_KEYS;
+const DEFAULT_ENTITLEMENT = WakeStorage.DEFAULT_ENTITLEMENT;
 const PLAN_COPY = {
   free: {
     label: "Free",
@@ -40,26 +41,31 @@ const METABOLISM = {
   T_clear: 0.005,
 };
 
-const ALERT_RULES = {
-  safe: {
-    title: "应酬开局了",
-    description: "已喝到你平时量的一半，系统自动报个平安。",
-  },
-  warning: {
-    inactivityMs: 30 * 60 * 1000,
-    countdownMs: 60 * 1000,
-    title: "还没散，我没事儿，报个平安",
-    description: "已超量且 30 分钟无操作，60 秒后将尝试唤起短信。",
-    vibration: [250, 150, 250, 150, 800],
-  },
-  emergency: {
-    inactivityMs: 60 * 60 * 1000,
-    countdownMs: 60 * 1000,
-    title: "我喝断片儿了，请速来接我",
-    description: "已超量且 60 分钟无操作，60 秒后将尝试唤起短信。",
-    vibration: [450, 150, 450, 150, 450, 150, 900],
-  },
-};
+const WakeEngine = window.WakeEngine;
+const WakePatrol = window.WakePatrol;
+const WakeRender = window.WakeRender;
+const ALERT_RULES = WakePatrol.ALERT_RULES;
+const {
+  renderCountdownStages,
+  getCountdownStageItems,
+  renderUpgradeCard,
+  getSeverityLabel,
+  renderDrinkCard,
+  renderCompactLogItem,
+  getStatus,
+  getThemeClass,
+  formatGrams,
+  formatPercent,
+  formatDuration,
+  formatLiveCountdown,
+  formatPromptCountdown,
+  formatRatio,
+  formatDateTime,
+  formatTargetTime,
+  formatGender,
+  maskPhone,
+  truncateText,
+} = WakeRender;
 
 const app = document.querySelector("#app");
 
@@ -89,156 +95,43 @@ function bootstrap() {
 }
 
 function loadConfig() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.config);
-    if (!raw) return null;
-    const p = JSON.parse(raw);
-    if (!p || !p.gender || !Number.isFinite(Number(p.weight)) || !Number.isFinite(Number(p.alcoholThreshold)) || !p.emergencyContact) return null;
-    return {
-      gender: p.gender,
-      weight: Number(p.weight),
-      heightCm: Number.isFinite(Number(p.heightCm)) ? Number(p.heightCm) : null,
-      age: Number.isFinite(Number(p.age)) ? Number(p.age) : null,
-      alcoholThreshold: Number(p.alcoholThreshold),
-      emergencyContact: String(p.emergencyContact).trim(),
-    };
-  } catch { return null; }
+  return WakeStorage.loadConfig(window.localStorage);
 }
 
 function loadEntitlement() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.entitlement);
-    if (!raw) return { ...DEFAULT_ENTITLEMENT };
-    const p = JSON.parse(raw);
-    if (!p || !["free", "pro", "supporter"].includes(p.plan)) return { ...DEFAULT_ENTITLEMENT };
-    return { plan: p.plan };
-  } catch { return { ...DEFAULT_ENTITLEMENT }; }
+  return WakeStorage.loadEntitlement(window.localStorage);
 }
 
 function createEmptySession() {
-  const drinks = {};
-  Object.values(DRINKS).forEach((d) => { drinks[d.id] = { count: 0, abv: d.defaultAbv, volumeMl: d.defaultVolumeMl }; });
-  return {
-    dateKey: getTodayKey(), startedAt: null, lastDrinkTime: null,
-    mealState: null, safeMode: false, safeReportSent: false,
-    warningHandled: false, emergencyHandled: false,
-    messageLog: [], snapshots: [], drinkEvents: [], drinks,
-  };
+  return WakeStorage.createEmptySession({ drinks: DRINKS, todayKey: getTodayKey() });
 }
 
 function loadSession() {
-  const fallback = createEmptySession();
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.session);
-    if (!raw) return fallback;
-    const p = JSON.parse(raw);
-    if (!p || p.dateKey !== getTodayKey()) { window.localStorage.removeItem(STORAGE_KEYS.session); return fallback; }
-    const s = createEmptySession();
-    s.startedAt = Number.isFinite(Number(p.startedAt)) ? Number(p.startedAt) : null;
-    s.lastDrinkTime = Number.isFinite(Number(p.lastDrinkTime)) ? Number(p.lastDrinkTime) : null;
-    s.mealState = p.mealState || null;
-    s.safeMode = Boolean(p.safeMode);
-    s.safeReportSent = Boolean(p.safeReportSent);
-    s.warningHandled = Boolean(p.warningHandled);
-    s.emergencyHandled = Boolean(p.emergencyHandled);
-    s.messageLog = Array.isArray(p.messageLog) ? p.messageLog.filter((i) => i && i.type && Number.isFinite(Number(i.at))) : [];
-    s.snapshots = Array.isArray(p.snapshots) ? p.snapshots.filter((x) => x && Number.isFinite(Number(x.at)) && Number.isFinite(Number(x.totalGrams))) : [];
-    s.drinkEvents = Array.isArray(p.drinkEvents) ? p.drinkEvents.filter((e) => e && e.type && e.action && Number.isFinite(Number(e.timestamp))) : [];
-    Object.values(DRINKS).forEach((d) => {
-      const sv = p.drinks?.[d.id] ?? {};
-      s.drinks[d.id] = { count: clampInt(sv.count, 0), abv: clampNumber(sv.abv, 0.1, 96, d.defaultAbv), volumeMl: clampNumber(sv.volumeMl, 10, 1000, d.defaultVolumeMl) };
-    });
-    return s;
-  } catch { return fallback; }
+  return WakeStorage.loadSession(window.localStorage, { drinks: DRINKS, todayKey: getTodayKey() });
 }
 
 function saveConfig() {
-  if (!state.config) { window.localStorage.removeItem(STORAGE_KEYS.config); return; }
-  window.localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(state.config));
+  WakeStorage.saveConfig(window.localStorage, state.config);
 }
 
 function saveSession() {
-  window.localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(state.session));
+  WakeStorage.saveSession(window.localStorage, state.session);
 }
 
 function saveEntitlement() {
-  window.localStorage.setItem(STORAGE_KEYS.entitlement, JSON.stringify(state.entitlement));
+  WakeStorage.saveEntitlement(window.localStorage, state.entitlement);
 }
 
 /* ====== Algorithm Engine: TBW/Widmark Event-Stream Simulation ====== */
 
-function computeVd() {
-  const c = state.config;
-  if (!c) return 40;
-  const w = c.weight;
-  const h = c.heightCm;
-  const a = c.age;
-  if (c.gender === "male") {
-    if (h && a) { const tbw = 2.447 - 0.09516 * a + 0.1074 * h + 0.3362 * w; return tbw; }
-    return 0.7 * w;
-  }
-  if (c.gender === "female") {
-    if (h) { const hm = h / 100; const bmi = w / (hm * hm); const v = 0.7772 - 0.0099 * bmi; return w * v; }
-    return 0.6 * w;
-  }
-  return 0.65 * w;
-}
-
 function simulateBAC() {
-  const events = state.session.drinkEvents.filter((e) => e.action === "add");
-  if (events.length === 0) return { currentBAC: 0, tHigh: 0, tMild: 0, tClear: 0, soberAtTime: null, peakBAC: 0 };
-
-  const VdL = computeVd();
-  const beta = METABOLISM.beta;
-  const elimGPerMin = (beta * 10 * VdL) / 60;
-  const mealState = state.session.mealState || "normalMeal";
-  const { Fmeal, tauAbsMin } = MEAL_PARAMS[mealState] || MEAL_PARAMS.normalMeal;
-
-  const earliestTs = Math.min(...events.map((e) => e.timestamp));
-  const now = Date.now();
-  const totalAbsorptionMinutes = Math.max(...events.map((e) => {
-    const evMin = (e.timestamp - earliestTs) / 60000;
-    return evMin + tauAbsMin;
-  }));
-  const totalAlcoholInputGrams = events.reduce((sum, ev) => {
-    const eventAbv = normalizeEventAbv(ev.abv);
-    return sum + ev.volumeMl * eventAbv * ETHANOL_DENSITY * Fmeal;
-  }, 0);
-  const estimatedClearMinutes = Math.ceil(totalAlcoholInputGrams / Math.max(elimGPerMin, 0.01)) + Math.ceil(totalAbsorptionMinutes) + 180;
-  const totalMinutes = Math.max(
-    Math.ceil((now - earliestTs) / 60000) + 720,
-    estimatedClearMinutes,
-  );
-
-  let bodyAlcG = 0;
-  let peakBAC = 0;
-  const nowMin = Math.ceil((now - earliestTs) / 60000);
-  const bacTrace = [];
-
-  for (let t = 0; t <= totalMinutes; t++) {
-    let inputPerMin = 0;
-    for (const ev of events) {
-      const evMin = (ev.timestamp - earliestTs) / 60000;
-      if (t >= evMin && t < evMin + tauAbsMin) {
-        const eventAbv = normalizeEventAbv(ev.abv);
-        const Gi = ev.volumeMl * eventAbv * ETHANOL_DENSITY * Fmeal;
-        inputPerMin += Gi / tauAbsMin;
-      }
-    }
-    bodyAlcG = Math.max(0, bodyAlcG + inputPerMin - elimGPerMin);
-    const bac = VdL > 0 ? bodyAlcG / (10 * VdL) : 0;
-    bacTrace.push(bac);
-    if (bac > peakBAC) peakBAC = bac;
-  }
-
-  const currentBAC = bacTrace[Math.min(nowMin, bacTrace.length - 1)] ?? 0;
-  const tHigh = getTimeUntilStableBelowThreshold(bacTrace, nowMin, METABOLISM.T_high);
-  const tMild = getTimeUntilStableBelowThreshold(bacTrace, nowMin, METABOLISM.T_mild);
-  const tClear = getTimeUntilStableBelowThreshold(bacTrace, nowMin, METABOLISM.T_clear);
-
-  const soberAtTime = events.length > 0 ? now + tClear : null;
-
-  return { currentBAC, tHigh, tMild, tClear, soberAtTime, peakBAC };
+  return WakeEngine.simulateBAC({
+    config: state.config,
+    session: state.session,
+    now: Date.now(),
+    mealParams: MEAL_PARAMS,
+    metabolism: METABOLISM,
+  });
 }
 
 function getMetrics() {
@@ -318,7 +211,7 @@ function renderSetup() {
 
 function renderDashboard() {
   const metrics = getMetrics();
-  const status = getStatus(metrics);
+  const status = resolveStatus(metrics);
   const themeClass = getThemeClass(status);
   const safeBtn = state.session.safeMode ? "开始新一局" : "我已安全 / 结束酒局";
   const planLabel = state.entitlement.plan === "pro" ? "Pro" : state.entitlement.plan === "supporter" ? "Supporter" : "Free";
@@ -340,7 +233,10 @@ function renderDashboard() {
 
     <section class="drinks-card market-card">
       <div class="section-head"><h2>喝了多少</h2><p>点 + 加酒，首次可调度数和容量。</p></div>
-      <div class="drink-list">${Object.values(DRINKS).map((d) => renderDrinkCard(d, state.session.drinks[d.id], metrics)).join("")}</div>
+      <div class="drink-list">${Object.values(DRINKS).map((d) => renderDrinkCard(d, state.session.drinks[d.id], {
+        shareLabel: metrics.drinkBreakdown.find((item) => item.id === d.id)?.shareLabel || "0%",
+        safeMode: state.session.safeMode,
+      })).join("")}</div>
     </section>
 
     <section class="market-card countdown-card">
@@ -386,7 +282,7 @@ function renderDashboard() {
       </dl>
     </section>
 
-    ${renderUpgradeCard()}
+    ${renderUpgradeCard(state.entitlement.plan)}
 
     <section class="disclaimer market-card">
       <div class="section-head"><h2>免责声明</h2><p>这不是医疗工具。</p></div>
@@ -401,82 +297,6 @@ function renderDashboard() {
   </main>
   <div class="sticky-safe-wrap"><button class="sticky-safe-btn ${state.session.safeMode ? "ended" : ""}" data-action="toggle-safe-mode" type="button">${safeBtn}</button></div>
   ${renderModal()}${renderToast()}</div>`;
-}
-
-function renderCountdownStages(metrics) {
-  return `<div class="countdown-stages">
-    <div class="stage-row" data-stage="empty">
-      <span class="stage-emoji">—</span>
-      <span class="stage-label">尚未开始饮酒</span>
-      <div class="stage-timing"><span class="stage-time">—</span><small class="stage-clock">—</small></div>
-    </div>
-    <div class="stage-row high" data-stage="high">
-      <span class="stage-emoji">🤯</span>
-      <span class="stage-label">离清醒还差得远</span>
-      <div class="stage-timing"><span class="stage-time">00:00:00</span><small class="stage-clock">约 —</small></div>
-    </div>
-    <div class="stage-row mild" data-stage="mild">
-      <span class="stage-emoji">🙂</span>
-      <span class="stage-label">快清醒了</span>
-      <div class="stage-timing"><span class="stage-time">00:00:00</span><small class="stage-clock">约 —</small></div>
-    </div>
-    <div class="stage-row clear" data-stage="clear">
-      <span class="stage-emoji">😌</span>
-      <span class="stage-label">基本清醒了</span>
-      <div class="stage-timing"><span class="stage-time">00:00:00</span><small class="stage-clock">约 —</small></div>
-    </div>
-  </div>`;
-}
-
-function getCountdownStageItems(metrics) {
-  if (metrics.totalAlcoholGrams <= 0) {
-    return [{ tone: "", emoji: "—", label: "尚未开始饮酒", done: true, timeMs: 0 }];
-  }
-
-  const items = [];
-  if (metrics.tHigh > 0) items.push({ tone: "high", emoji: "🤯", label: "离清醒还差得远", timeMs: metrics.tHigh });
-  if (metrics.tMild > 0) items.push({ tone: "mild", emoji: "🙂", label: "快清醒了", timeMs: metrics.tMild });
-  if (metrics.tClear > 0) items.push({ tone: "clear", emoji: "😌", label: "基本清醒了", timeMs: metrics.tClear });
-
-  if (items.length > 0) return items;
-  return [{ tone: "clear", emoji: "😌", label: "已经清醒了", done: true, timeMs: 0 }];
-}
-
-function renderUpgradeCard() {
-  if (state.entitlement.plan !== "free") return "";
-  return `<section class="market-card upgrade-card">
-    <div class="section-head"><h2>升级 Pro</h2><p>保持现在的 UI，不打断记录主流程。</p></div>
-    <div class="pro-callout">
-      <strong>把真正兜底的能力放到付费层</strong>
-      <p>解锁安全守候、多联系人、更强提醒策略、历史记录 / 复盘、导出、自定义酒类。</p>
-      <button class="ghost-btn" data-action="open-upgrade" type="button">查看 Pro 权益</button>
-    </div>
-  </section>`;
-}
-
-function getSeverityLabel(metrics) {
-  if (metrics.ratio >= 1.5) return "已经非常高了";
-  if (metrics.ratio >= 1.0) return "已经很高了";
-  if (metrics.ratio >= 0.5) return "有点上头了";
-  return "还好";
-}
-
-function renderDrinkCard(drink, entry, metrics) {
-  const isEnded = state.session.safeMode;
-  const bi = metrics.drinkBreakdown.find((i) => i.id === drink.id);
-  const share = bi ? bi.shareLabel : "0%";
-  return `<article class="drink-card">
-    <div class="drink-card-top"><div><h3>${drink.name}</h3><div class="drink-meta">${drink.presetLabel} · 当前度数 ${formatPercent(entry.abv)}</div></div><div class="drink-count">${entry.count}${drink.unit}</div></div>
-    <div class="drink-card-bottom"><div class="drink-meta">单次计入 ${entry.volumeMl}ml · 贡献 ${share}</div>
-      <div class="drink-actions">
-        <button class="circle-btn remove" data-action="drink-remove" data-drink="${drink.id}" type="button" ${entry.count === 0 || isEnded ? "disabled" : ""}>-</button>
-        <button class="circle-btn add" data-action="drink-add" data-drink="${drink.id}" type="button" ${isEnded ? "disabled" : ""}>+</button>
-      </div></div></article>`;
-}
-
-function renderCompactLogItem(item) {
-  const labels = { safe: "应酬开局了", warning: "报个平安", emergency: "断片儿提醒" };
-  return `<article class="compact-log-item ${item.type}"><div><strong>${labels[item.type] ?? item.type}</strong><span>${formatDateTime(item.at)}</span></div><small>${truncateText(item.message, 28)}</small></article>`;
 }
 
 function renderModal() {
@@ -585,7 +405,7 @@ function startClock() {
 function syncLiveMetrics() {
   if (!state.config) return;
   const metrics = getMetrics();
-  const status = getStatus(metrics);
+  const status = resolveStatus(metrics);
   bindText("totalAlcohol", formatGrams(metrics.totalAlcoholGrams));
   bindText("soberAt", metrics.soberAtTime ? formatTargetTime(metrics.soberAtTime) : "—");
   syncCountdownStages(metrics);
@@ -645,30 +465,31 @@ function syncCountdownStages(metrics) {
 }
 
 function getPatrolStatus({ totalAlcoholGrams, hasDrinks }) {
-  if (!isProPlan()) return { headline: PLAN_COPY.free.patrolHeadline, detail: PLAN_COPY.free.patrolDetail };
-  if (state.session.safeMode) return { headline: "守候已关闭", detail: "你已手动结束本次酒局。" };
-  if (!hasDrinks) return { headline: "尚未启动", detail: "开始记录饮酒后才会计算守候节奏。" };
-  if (state.ui.prompt) return { headline: state.ui.prompt.level === "warning" ? "预警拦截中" : "紧急拦截中", detail: `${formatPromptCountdown(state.ui.prompt.endsAt)} 后尝试唤起短信。` };
-  if (totalAlcoholGrams < state.config.alcoholThreshold) return { headline: "等待超量", detail: "达到你的量后，30 / 60 分钟无操作才触发提醒。" };
-  const anchor = state.session.lastDrinkTime ?? Date.now();
-  const elapsed = Date.now() - anchor;
-  const wR = Math.max(ALERT_RULES.warning.inactivityMs - elapsed, 0);
-  const eR = Math.max(ALERT_RULES.emergency.inactivityMs - elapsed, 0);
-  if (!state.session.warningHandled) return { headline: wR > 0 ? `${formatDuration(wR)}后预警` : "预警待触发", detail: `紧急提醒剩余 ${formatDuration(eR)}。` };
-  if (!state.session.emergencyHandled) return { headline: eR > 0 ? `${formatDuration(eR)}后紧急` : "紧急待触发", detail: "预警已处理，系统继续观察你的状态。" };
-  return { headline: "本轮提醒已处理", detail: "再次加减酒后，会重新开始 30 / 60 分钟守候。" };
+  return WakePatrol.getPatrolStatus({
+    isProPlan: isProPlan(),
+    safeMode: state.session.safeMode,
+    hasDrinks,
+    prompt: state.ui.prompt,
+    totalAlcoholGrams,
+    alcoholThreshold: state.config.alcoholThreshold,
+    lastDrinkTime: state.session.lastDrinkTime,
+    now: Date.now(),
+    warningHandled: state.session.warningHandled,
+    emergencyHandled: state.session.emergencyHandled,
+    formatPromptCountdown,
+    formatDuration,
+    freeHeadline: PLAN_COPY.free.patrolHeadline,
+    freeDetail: PLAN_COPY.free.patrolDetail,
+  });
 }
 
-function getStatus(metrics) {
-  if (state.session.safeMode) return { label: "已结束", detail: "守候已关闭", className: "ended" };
-  if (metrics.ratio >= 1.5) return { label: "高危", detail: "明显超量，界面切入红色重警示。", className: "red" };
-  if (metrics.totalAlcoholGrams >= state.config.alcoholThreshold) return { label: "上头了", detail: "已经超过你的量了，注意节制。", className: "orange" };
-  if (metrics.totalAlcoholGrams >= state.config.alcoholThreshold * 0.5) return { label: "微醺", detail: "已达一半，界面切入黄色留意区。", className: "yellow" };
-  return { label: "清醒", detail: "仍在可控范围，界面保持冷静基调。", className: "calm" };
-}
-
-function getThemeClass(s) {
-  return `theme-${s.className === "ended" ? "ended" : s.className === "red" ? "red" : s.className === "orange" ? "orange" : s.className === "yellow" ? "yellow" : "calm"}`;
+function resolveStatus(metrics) {
+  return getStatus({
+    safeMode: state.session.safeMode,
+    ratio: metrics.ratio,
+    totalAlcoholGrams: metrics.totalAlcoholGrams,
+    alcoholThreshold: state.config?.alcoholThreshold ?? 0,
+  });
 }
 
 /* -- Event Delegation -- */
@@ -785,19 +606,24 @@ function maybeTriggerSafeReport() {
 
 function schedulePatrol() {
   clearPatrolTimers();
-  if (!isProPlan()) return;
-  if (!state.config || state.session.safeMode) return;
   const metrics = getMetrics();
-  if (metrics.totalAlcoholGrams < state.config.alcoholThreshold) return;
-  const anchor = state.session.lastDrinkTime ?? Date.now();
-  const elapsed = Date.now() - anchor;
-  if (!state.session.emergencyHandled && elapsed >= ALERT_RULES.emergency.inactivityMs) { triggerPrompt("emergency"); return; }
-  if (!state.session.warningHandled && elapsed >= ALERT_RULES.warning.inactivityMs) { triggerPrompt("warning"); return; }
-  if (!state.session.warningHandled) { state.timers.warningTimeout = window.setTimeout(() => triggerPrompt("warning"), Math.max(ALERT_RULES.warning.inactivityMs - elapsed, 0)); }
-  if (!state.session.emergencyHandled) { state.timers.emergencyTimeout = window.setTimeout(() => triggerPrompt("emergency"), Math.max(ALERT_RULES.emergency.inactivityMs - elapsed, 0)); }
+  const next = WakePatrol.decidePatrolSchedule({
+    isProPlan: isProPlan(),
+    hasConfig: Boolean(state.config),
+    safeMode: state.session.safeMode,
+    totalAlcoholGrams: metrics.totalAlcoholGrams,
+    alcoholThreshold: state.config?.alcoholThreshold,
+    lastDrinkTime: state.session.lastDrinkTime,
+    now: Date.now(),
+    warningHandled: state.session.warningHandled,
+    emergencyHandled: state.session.emergencyHandled,
+  });
+  if (next.immediatePromptLevel) { triggerPrompt(next.immediatePromptLevel); return; }
+  if (next.warningDelayMs !== null) { state.timers.warningTimeout = window.setTimeout(() => triggerPrompt("warning"), next.warningDelayMs); }
+  if (next.emergencyDelayMs !== null) { state.timers.emergencyTimeout = window.setTimeout(() => triggerPrompt("emergency"), next.emergencyDelayMs); }
 }
 
-function clearPatrolTimers() { clearTimeout(state.timers.warningTimeout); clearTimeout(state.timers.emergencyTimeout); state.timers.warningTimeout = null; state.timers.emergencyTimeout = null; }
+function clearPatrolTimers() { WakePatrol.clearPatrolTimeouts(window, state.timers); }
 
 function triggerPrompt(level) {
   if (!isProPlan()) return;
@@ -814,14 +640,11 @@ function triggerPrompt(level) {
   }, 250);
 }
 
-function clearPrompt() { clearInterval(state.timers.promptTick); clearInterval(state.timers.vibrationTick); state.timers.promptTick = null; state.timers.vibrationTick = null; if (navigator.vibrate) navigator.vibrate(0); state.ui.prompt = null; }
+function clearPrompt() { clearInterval(state.timers.promptTick); clearInterval(state.timers.vibrationTick); state.timers.promptTick = null; state.timers.vibrationTick = null; WakePatrol.stopVibration(navigator); state.ui.prompt = null; }
 function markAlertHandled(level) { if (level === "warning") state.session.warningHandled = true; if (level === "emergency") state.session.emergencyHandled = true; saveSession(); }
 
 function composeMessage(level) {
-  const summary = getMetrics().drinkSummary;
-  if (level === "safe") return `【应酬开局了】我正在应酬，当前饮用：${summary}，状态安全，无需担心。`;
-  if (level === "warning") return `【还没散，报个平安】当前饮用：${summary}，已超量，请提醒休息。`;
-  return `【我喝断片儿了，请速来接我】当前饮用：${summary}，长时间无操作，建议关注安全。`;
+  return WakePatrol.composeSafetyMessage(level, getMetrics().drinkSummary);
 }
 
 async function dispatchSafetyMessage(level) {
@@ -841,12 +664,11 @@ async function dispatchSafetyMessage(level) {
 }
 
 function openSmsComposer(phone, message) {
-  const p = String(phone || "").replace(/[^\d+]/g, ""); if (!p) return false;
-  try { const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent); window.location.href = `sms:${p}${isIOS?"&":"?"}body=${encodeURIComponent(message)}`; return true; } catch { return false; }
+  return WakePatrol.openSmsComposer(window, navigator, phone, message);
 }
-async function copyText(text) { try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; } const t = document.createElement("textarea"); t.value = text; t.setAttribute("readonly","readonly"); t.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); return true; } catch { return false; } }
+async function copyText(text) { return WakePatrol.copyText(document, navigator, text); }
 function showToast(msg) { state.ui.toast = msg; render(); }
-function vibrate(level) { if (navigator.vibrate) navigator.vibrate(ALERT_RULES[level].vibration); }
+function vibrate(level) { WakePatrol.vibrate(navigator, level); }
 
 function loadDemoScenario() {
   clearPrompt(); clearPatrolTimers();
@@ -875,48 +697,10 @@ function loadDemoScenario() {
 }
 
 /* -- Formatters & Utils -- */
-function formatGrams(v) { return `${Number(v).toFixed(1)}g`; }
-function formatPercent(v) { return `${Number(v).toFixed(v%1===0?0:1)}%`; }
-function formatDuration(ms) { const m = Math.max(0, Math.ceil(ms/60000)); const h = Math.floor(m/60); const min = m%60; if (h===0) return `${min}分`; if (min===0) return `${h}小时`; return `${h}小时${min}分`; }
-function formatLiveCountdown(ms) {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const hh = String(hours).padStart(2, "0");
-  const mm = String(minutes).padStart(2, "0");
-  const ss = String(seconds).padStart(2, "0");
-  return days > 0 ? `${days}天 ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`;
-}
-function formatPromptCountdown(endsAt) { return `${Math.max(0, Math.ceil((endsAt-Date.now())/1000))}s`; }
-function formatRatio(v) { return `喝到你平时量的 ${Math.round(Math.max(v,0)*100)}% 了`; }
-function formatDateTime(ts) { const d = new Date(ts); const t = new Date(); const f = new Intl.DateTimeFormat("zh-CN",{hour:"2-digit",minute:"2-digit",hour12:false}).format(d); if (d.toDateString()===t.toDateString()) return `今天 ${f}`; return new Intl.DateTimeFormat("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit",hour12:false}).format(d); }
-function formatTargetTime(ts) {
-  const d = new Date(ts);
-  const now = new Date();
-  const hhmm = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  if (d.toDateString() === now.toDateString()) return `今天 ${hhmm}`;
-  if (d.toDateString() === tomorrow.toDateString()) return `明天 ${hhmm}`;
-  return new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
-}
-function formatGender(g) { return g==="male"?"男":g==="female"?"女":"其他"; }
-function maskPhone(p) { const v=String(p||""); return v.length<7?v:`${v.slice(0,3)}****${v.slice(-4)}`; }
-function truncateText(t,n) { const v=String(t||""); return v.length<=n?v:`${v.slice(0,n)}...`; }
 function getTodayKey() { const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; }
 function rolloverSessionIfNeeded() { if (state.session.dateKey===getTodayKey()) return false; state.session=createEmptySession(); saveSession(); return true; }
 function clampInt(v,min) { const n=Math.floor(Number(v)); return Number.isFinite(n)?Math.max(min,n):min; }
 function clampNumber(v,min,max,fb) { const n=Number(v); return Number.isFinite(n)?Math.min(Math.max(n,min),max):fb; }
-function getTimeUntilStableBelowThreshold(bacTrace, nowMin, threshold) {
-  let lastAboveIndex = -1;
-  for (let i = Math.max(nowMin, 0); i < bacTrace.length; i++) {
-    if (bacTrace[i] > threshold) lastAboveIndex = i;
-  }
-  return lastAboveIndex === -1 ? 0 : (lastAboveIndex - nowMin + 1) * 60000;
-}
-function normalizeEventAbv(v) { const n = Number(v); if (!Number.isFinite(n) || n <= 0) return 0; return n > 1 ? n / 100 : n; }
 function isProPlan() { return state.entitlement.plan === "pro"; }
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
