@@ -7,10 +7,18 @@ final class MonetizationService: ObservableObject {
 
     @Published var products: [Product] = []
     @Published var lastErrorMessage: String?
+    @Published var isLoadingProducts = false
+    @Published var isPurchasing = false
 
     func loadProducts() async {
+        isLoadingProducts = true
+        lastErrorMessage = nil
+        defer { isLoadingProducts = false }
         do {
             products = try await Product.products(for: [Self.proLifetimeID])
+            if products.isEmpty {
+                lastErrorMessage = L10n.string("upgrade.products.unavailable")
+            }
         } catch {
             lastErrorMessage = error.localizedDescription
         }
@@ -18,15 +26,19 @@ final class MonetizationService: ObservableObject {
 
     func purchasePro() async -> Bool {
         guard let product = products.first(where: { $0.id == Self.proLifetimeID }) else {
-            lastErrorMessage = L10n.string("upgrade.purchase.pending")
+            lastErrorMessage = L10n.string("upgrade.products.unavailable")
             return false
         }
 
+        isPurchasing = true
+        lastErrorMessage = nil
+        defer { isPurchasing = false }
         do {
             let result = try await product.purchase()
             switch result {
             case .success(let verification):
-                _ = try verified(verification)
+                let transaction = try verified(verification)
+                await transaction.finish()
                 return true
             case .userCancelled:
                 lastErrorMessage = L10n.string("upgrade.purchase.cancelled")
@@ -45,9 +57,14 @@ final class MonetizationService: ObservableObject {
     }
 
     func restorePurchases() async -> Bool {
+        lastErrorMessage = nil
         do {
             try await AppStore.sync()
-            return await refreshOwnedPro()
+            let hasPro = await refreshOwnedPro()
+            if !hasPro {
+                lastErrorMessage = L10n.string("upgrade.restore.none")
+            }
+            return hasPro
         } catch {
             lastErrorMessage = error.localizedDescription
             return false
@@ -81,4 +98,3 @@ final class MonetizationService: ObservableObject {
         case failedVerification
     }
 }
-
