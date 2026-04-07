@@ -18,6 +18,18 @@ struct ContentView: View {
                 }
                 .environmentObject(model)
             }
+            .sheet(isPresented: $model.showHistory) {
+                NavigationStack {
+                    HistoryView()
+                }
+                .environmentObject(model)
+            }
+            .sheet(isPresented: $model.showSettings) {
+                NavigationStack {
+                    SettingsView()
+                }
+                .environmentObject(model)
+            }
             .sheet(isPresented: $model.showSetupEditor) {
                 NavigationStack {
                     SetupView(mode: .editing)
@@ -27,4 +39,3 @@ struct ContentView: View {
         }
     }
 }
-

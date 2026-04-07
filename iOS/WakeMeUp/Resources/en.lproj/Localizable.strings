@@ -74,8 +74,10 @@
 "plan.supporter" = "Supporter";
 
 "actions.demo" = "Demo";
+"actions.history" = "History";
 "actions.profile" = "Profile";
 "actions.reset" = "Reset";
+"actions.settings" = "Settings";
 "actions.upgrade" = "Upgrade";
 "actions.end_session" = "I'm safe / End session";
 "actions.new_session" = "Start a new session";
@@ -90,6 +92,15 @@
 "upgrade.price" = "Lifetime unlock: %@";
 "upgrade.buy" = "Buy lifetime Pro";
 "upgrade.restore" = "Restore purchase";
+"upgrade.feature_list" = "What Pro is really for";
+"upgrade.feature.notifications" = "Lock-screen patrol reminders after you cross your limit";
+"upgrade.feature.contacts" = "More contact slots and stronger fallback flows";
+"upgrade.feature.history" = "History and session review";
+"upgrade.feature.export" = "Exports and custom drink templates";
+"upgrade.products.loading" = "Loading App Store product…";
+"upgrade.products.unavailable" = "App Store product is not available yet on this build.";
+"upgrade.testing_note" = "During MVP testing, this screen is a real shell for StoreKit 2 but the App Store product still needs to be connected in App Store Connect.";
+"upgrade.ready_note" = "The App Store product is loaded on this build. Purchase and restore are ready for real-device verification.";
 "upgrade.purchase.pending" = "Store product is not connected yet. Keep this entry ready for App Store Connect.";
 "upgrade.purchase.cancelled" = "Purchase cancelled.";
 "upgrade.purchase.success" = "Pro unlocked on this device.";
@@ -101,15 +112,42 @@
 "drink.spirits.name" = "Spirits";
 "drink.baijiu.name" = "Baijiu";
 "drink.beer.unit" = "bottle";
+"drink.beer.count_unit" = "bottles";
 "drink.wine.unit" = "glass";
+"drink.wine.count_unit" = "glasses";
 "drink.spirits.unit" = "shot";
+"drink.spirits.count_unit" = "shots";
 "drink.baijiu.unit" = "liang";
+"drink.baijiu.count_unit" = "liang";
 "drink.current_abv" = "ABV %.0f%%";
 "drink.contribution" = "%dml per tap · %d%% of total";
 
 "session.not_started" = "Not started";
 "session.last_drink_today" = "Last drink today %@";
 "session.last_drink_date" = "Last drink %@";
+
+"history.title" = "History";
+"history.empty.title" = "No archived sessions yet";
+"history.empty.body" = "End or clear a session and it will show up here for review.";
+"history.peak_bac" = "Peak BAC";
+"history.reason.finished" = "Ended manually";
+"history.reason.cleared" = "Cleared";
+"history.reason.rollover" = "New day rollover";
+"history.summary.empty" = "No drinks logged";
+"history.summary.entry" = "%@ %@";
+
+"settings.profile_section" = "Profile";
+"settings.session_section" = "Current session";
+"settings.device_section" = "Device";
+"settings.monetization_section" = "Pro";
+"settings.edit_profile" = "Edit profile";
+"settings.meal_state" = "Meal state";
+"settings.language" = "Phone language";
+"settings.plan" = "Current plan";
+"settings.notifications" = "Notifications";
+"settings.notifications_on" = "On";
+"settings.notifications_off" = "Off";
+"settings.monetization_body" = "The app will follow the phone's preferred language order automatically. Pro remains a one-time unlock for the stronger guardrail features.";
 
 "notification.warning.title" = "WakeMeUp check-in";
 "notification.warning.body" = "You crossed your limit and have been quiet for a while. Open the app and confirm you're okay.";
@@ -118,8 +156,8 @@
 
 "format.grams" = "%.1fg";
 "format.percent" = "%.0f%%";
+"format.count_unit" = "%d %@";
 "format.countdown.days" = "%d day %@:%@:%@";
 "format.unknown" = "-";
 "time.today" = "Today %@";
 "time.tomorrow" = "Tomorrow %@";
-

@@ -74,8 +74,10 @@
 "plan.supporter" = "Supporter";
 
 "actions.demo" = "Demo";
+"actions.history" = "历史";
 "actions.profile" = "档案";
 "actions.reset" = "清空";
+"actions.settings" = "设置";
 "actions.upgrade" = "查看 Pro";
 "actions.end_session" = "我已安全 / 结束酒局";
 "actions.new_session" = "开始新一局";
@@ -90,6 +92,15 @@
 "upgrade.price" = "一次买断：%@";
 "upgrade.buy" = "购买终身 Pro";
 "upgrade.restore" = "恢复购买";
+"upgrade.feature_list" = "Pro 主要卖什么";
+"upgrade.feature.notifications" = "超过你的量后，锁屏也能继续收到守候提醒";
+"upgrade.feature.contacts" = "更多联系人位和更强的兜底流程";
+"upgrade.feature.history" = "历史记录与酒局复盘";
+"upgrade.feature.export" = "导出和自定义酒类模板";
+"upgrade.products.loading" = "正在读取 App Store 商品…";
+"upgrade.products.unavailable" = "当前构建里还没有拿到 App Store 商品。";
+"upgrade.testing_note" = "当前 MVP 测试阶段，这一页已经按 StoreKit 2 结构预留好，但还需要在 App Store Connect 里接上真实商品。";
+"upgrade.ready_note" = "当前构建已经拿到 App Store 商品，可以继续做真机购买与恢复购买验证。";
 "upgrade.purchase.pending" = "App Store Connect 里的商品还没接好，先把入口结构保留。";
 "upgrade.purchase.cancelled" = "你取消了购买。";
 "upgrade.purchase.success" = "这台设备已解锁 Pro。";
@@ -101,15 +112,42 @@
 "drink.spirits.name" = "洋酒";
 "drink.baijiu.name" = "白酒";
 "drink.beer.unit" = "瓶";
+"drink.beer.count_unit" = "瓶";
 "drink.wine.unit" = "杯";
+"drink.wine.count_unit" = "杯";
 "drink.spirits.unit" = "杯";
+"drink.spirits.count_unit" = "杯";
 "drink.baijiu.unit" = "两";
+"drink.baijiu.count_unit" = "两";
 "drink.current_abv" = "当前度数 %.0f%%";
 "drink.contribution" = "单次计入 %dml · 贡献 %d%%";
 
 "session.not_started" = "还没开始记录";
 "session.last_drink_today" = "最后操作 今天 %@";
 "session.last_drink_date" = "最后操作 %@";
+
+"history.title" = "历史记录";
+"history.empty.title" = "还没有归档酒局";
+"history.empty.body" = "结束一局或清空一局之后，这里会留下复盘记录。";
+"history.peak_bac" = "峰值 BAC";
+"history.reason.finished" = "手动结束";
+"history.reason.cleared" = "手动清空";
+"history.reason.rollover" = "跨天自动归档";
+"history.summary.empty" = "还没有记录饮酒";
+"history.summary.entry" = "%@ %@";
+
+"settings.profile_section" = "本机档案";
+"settings.session_section" = "当前酒局";
+"settings.device_section" = "设备";
+"settings.monetization_section" = "Pro";
+"settings.edit_profile" = "编辑档案";
+"settings.meal_state" = "进食状态";
+"settings.language" = "手机语言";
+"settings.plan" = "当前版本";
+"settings.notifications" = "通知状态";
+"settings.notifications_on" = "已开启";
+"settings.notifications_off" = "未开启";
+"settings.monetization_body" = "App 会自动跟随手机语言优先级适配界面语言。Pro 仍然按一次买断解锁更强的兜底能力。";
 
 "notification.warning.title" = "醒了吗? 守候提醒";
 "notification.warning.body" = "你已经超过自己的量，且有一段时间没操作了。打开 App 确认一下状态。";
@@ -118,8 +156,8 @@
 
 "format.grams" = "%.1fg";
 "format.percent" = "%.0f%%";
+"format.count_unit" = "%d%@";
 "format.countdown.days" = "%d天 %@:%@:%@";
 "format.unknown" = "—";
 "time.today" = "今天 %@";
 "time.tomorrow" = "明天 %@";
-
