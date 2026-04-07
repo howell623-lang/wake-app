@@ -29,12 +29,16 @@ struct DashboardView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button(L10n.string("actions.demo")) {
-                    model.loadDemoScenario()
+                Button(L10n.string("actions.history")) {
+                    model.openHistory()
                 }
 
-                Button(L10n.string("actions.profile")) {
-                    model.openProfileEditor()
+                Button(L10n.string("actions.settings")) {
+                    model.openSettings()
+                }
+
+                Button(L10n.string("actions.demo")) {
+                    model.loadDemoScenario()
                 }
 
                 Button(L10n.string("actions.reset")) {
@@ -101,39 +105,44 @@ struct DashboardView: View {
 
     private var countdownCard: some View {
         CardSection(title: L10n.string("dashboard.countdown.title"), subtitle: L10n.string("dashboard.countdown.subtitle")) {
-            VStack(spacing: 0) {
-                ForEach(model.stageItems) { item in
-                    HStack(alignment: .top, spacing: 12) {
-                        Text(item.symbol)
-                            .font(.title3)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let liveMetrics = model.metrics(at: context.date)
+                let liveStages = model.stageItems(at: context.date)
 
-                        Text(L10n.string(item.titleKey))
-                            .font(.headline)
+                VStack(spacing: 0) {
+                    ForEach(liveStages) { item in
+                        HStack(alignment: .top, spacing: 12) {
+                            Text(item.symbol)
+                                .font(.title3)
 
-                        Spacer()
+                            Text(L10n.string(item.titleKey))
+                                .font(.headline)
 
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text(item.isReached ? L10n.string("countdown.reached") : L10n.formatLiveCountdown(item.remaining))
-                                .font(.system(.headline, design: .monospaced))
-                                .foregroundStyle(stageColor(for: item.tone))
+                            Spacer()
 
-                            Text(item.isReached ? L10n.string("countdown.target_now") : L10n.format("countdown.target_prefix", L10n.formatTargetTime(item.targetTime)))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text(item.isReached ? L10n.string("countdown.reached") : L10n.formatLiveCountdown(item.remaining))
+                                    .font(.system(.headline, design: .monospaced))
+                                    .foregroundStyle(stageColor(for: item.tone))
+
+                                Text(item.isReached ? L10n.string("countdown.target_now") : L10n.format("countdown.target_prefix", L10n.formatTargetTime(item.targetTime)))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 14)
+
+                        if item.id != liveStages.last?.id {
+                            Divider()
                         }
                     }
-                    .padding(.vertical, 14)
 
-                    if item.id != model.stageItems.last?.id {
-                        Divider()
-                    }
+                    Divider().padding(.top, 8)
+
+                    summaryRow(L10n.string("dashboard.summary.total"), L10n.formatGrams(liveMetrics.totalAlcoholGrams))
+                    summaryRow(L10n.string("dashboard.summary.sober_at"), L10n.formatTargetTime(liveMetrics.soberAt))
+                    summaryRow(L10n.string("dashboard.summary.last_drink"), L10n.formatLastDrink(model.session.lastDrinkAt))
                 }
-
-                Divider().padding(.top, 8)
-
-                summaryRow(L10n.string("dashboard.summary.total"), L10n.formatGrams(model.metrics.totalAlcoholGrams))
-                summaryRow(L10n.string("dashboard.summary.sober_at"), L10n.formatTargetTime(model.metrics.soberAt))
-                summaryRow(L10n.string("dashboard.summary.last_drink"), L10n.formatLastDrink(model.session.lastDrinkAt))
             }
         }
     }
@@ -182,6 +191,8 @@ struct DashboardView: View {
                 profileRow(L10n.string("setup.age"), model.profile?.age.map(String.init) ?? "-")
                 profileRow(L10n.string("setup.threshold"), model.profile.map { L10n.formatGrams($0.thresholdGrams) } ?? "-")
                 profileRow(L10n.string("setup.contact"), model.profile?.emergencyContact ?? "-")
+                profileRow(L10n.string("settings.language"), model.preferredLanguageLabel)
+                profileRow(L10n.string("settings.meal_state"), model.currentMealStateTitle)
             }
         }
     }
@@ -289,7 +300,7 @@ private struct DrinkCardView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text("\(entry.count)\(L10n.string(entry.type.unitKey))")
+                Text(L10n.formatCountUnit(entry.count, unitKey: entry.type.countUnitKey))
                     .font(.title2.weight(.bold))
                     .foregroundStyle(.red)
             }
@@ -318,4 +329,3 @@ private struct DrinkCardView: View {
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
-

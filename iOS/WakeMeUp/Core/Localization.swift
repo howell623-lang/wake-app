@@ -17,6 +17,10 @@ enum L10n {
         format("format.grams", value)
     }
 
+    static func formatCountUnit(_ count: Int, unitKey: String) -> String {
+        format("format.count_unit", count, string(unitKey))
+    }
+
     static func formatPercent(_ value: Double) -> String {
         format("format.percent", value)
     }
@@ -65,4 +69,3 @@ enum L10n {
         return format("session.last_drink_date", formatTargetTime(date))
     }
 }
-
