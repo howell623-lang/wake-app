@@ -1,8 +1,12 @@
-const CACHE_NAME = "wake-app-v4";
+const CACHE_NAME = "wake-app-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
+  "./engine-core.js",
+  "./storage-core.js",
+  "./patrol-core.js",
+  "./render-core.js",
   "./app.js",
   "./manifest.webmanifest",
   "./icons/icon.svg",
@@ -34,6 +38,12 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

@@ -125,9 +125,41 @@ function saveEntitlement() {
 /* ====== Algorithm Engine: TBW/Widmark Event-Stream Simulation ====== */
 
 function simulateBAC() {
+  const session = state.session;
+  // If drinkEvents is empty but we have drink counts, synthesize fallback events
+  // so the BAC engine can still produce meaningful countdown values.
+  let effectiveSession = session;
+  const addEvents = Array.isArray(session.drinkEvents)
+    ? session.drinkEvents.filter((e) => e && e.action === "add")
+    : [];
+  if (addEvents.length === 0 && session.startedAt) {
+    const syntheticEvents = [];
+    const anchor = session.lastDrinkTime || session.startedAt;
+    Object.values(DRINKS).forEach((drink) => {
+      const entry = session.drinks[drink.id];
+      if (entry.count > 0) {
+        for (let i = 0; i < entry.count; i++) {
+          // Spread synthetic events evenly between startedAt and anchor
+          const span = Math.max(anchor - session.startedAt, 0);
+          const step = entry.count > 1 ? span / (entry.count - 1) : 0;
+          const ts = session.startedAt + Math.round(step * i);
+          syntheticEvents.push({
+            type: drink.id,
+            action: "add",
+            abv: entry.abv / 100,
+            volumeMl: entry.volumeMl,
+            timestamp: ts,
+          });
+        }
+      }
+    });
+    if (syntheticEvents.length > 0) {
+      effectiveSession = { ...session, drinkEvents: syntheticEvents };
+    }
+  }
   return WakeEngine.simulateBAC({
     config: state.config,
-    session: state.session,
+    session: effectiveSession,
     now: Date.now(),
     mealParams: MEAL_PARAMS,
     metabolism: METABOLISM,
