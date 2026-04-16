@@ -184,8 +184,8 @@ function renderSetup() {
   return `
     <main class="setup-card">
       <h1>醒了吗?</h1>
-      <p class="setup-subtitle">Sober?</p>
-      <p>极简饮酒安全兜底与清醒计时工具。所有配置仅保存在你的手机或浏览器本地。</p>
+      <p class="setup-subtitle">Sleeping Pills</p>
+      <p>极简饮酒安全兜底与清醒计时工具。向 Suede 致敬。所有配置仅保存在你的手机或浏览器本地。</p>
       <form id="setup-form" class="form-grid">
         <div class="field"><label for="gender">性别</label>
           <select id="gender" name="gender" required><option value="">请选择</option><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select></div>
@@ -220,7 +220,7 @@ function renderDashboard() {
     <section class="topbar">
       <div class="brand-lockup">
         <div class="brand-mark"><svg viewBox="0 0 36 36" width="28" height="28" fill="none"><circle cx="18" cy="18" r="16" stroke="currentColor" stroke-width="2"/><text x="18" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">?</text><path d="M12 8 Q14 4 18 6 Q22 8 20 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg></div>
-        <div class="brand-wording"><strong>醒了吗?</strong><span>Sober?</span></div>
+        <div class="brand-wording"><strong>醒了吗?</strong><span>Sleeping Pills</span></div>
       </div>
       <div class="header-actions">
         <button class="ghost-btn" data-action="load-demo" type="button">Demo</button>
@@ -447,6 +447,7 @@ function syncCountdownStages(metrics) {
     row.setAttribute("aria-hidden", "true");
   });
 
+  const now = Date.now();
   const items = getCountdownStageItems(metrics);
   for (const item of items) {
     const row = rows[item.tone || "empty"];
@@ -458,9 +459,24 @@ function syncCountdownStages(metrics) {
     const emoji = row.querySelector(".stage-emoji");
     const clock = row.querySelector(".stage-clock");
     if (label) label.textContent = item.label;
-    if (time) time.textContent = item.done ? "已到这一步" : formatLiveCountdown(item.timeMs);
+    if (time) {
+      if (item.done) {
+        time.textContent = "已到这一步";
+      } else {
+        // Compute target timestamp and count down to it for real-time ticking
+        const targetTs = row.dataset.targetTs ? Number(row.dataset.targetTs) : 0;
+        const engineTargetTs = now + item.timeMs;
+        // Only update anchor when engine value changes significantly (>= 30s drift)
+        if (!targetTs || Math.abs(engineTargetTs - targetTs) >= 30000) {
+          row.dataset.targetTs = String(engineTargetTs);
+          time.textContent = formatLiveCountdown(Math.max(0, engineTargetTs - now));
+        } else {
+          time.textContent = formatLiveCountdown(Math.max(0, targetTs - now));
+        }
+      }
+    }
     if (emoji) emoji.textContent = item.emoji;
-    if (clock) clock.textContent = item.done ? "约 现在" : `约 ${formatTargetTime(Date.now() + item.timeMs)}`;
+    if (clock) clock.textContent = item.done ? "约 现在" : `约 ${formatTargetTime(now + item.timeMs)}`;
   }
 }
 
@@ -471,7 +487,7 @@ function getPatrolStatus({ totalAlcoholGrams, hasDrinks }) {
     hasDrinks,
     prompt: state.ui.prompt,
     totalAlcoholGrams,
-    alcoholThreshold: state.config.alcoholThreshold,
+    alcoholThreshold: state.config?.alcoholThreshold ?? 0,
     lastDrinkTime: state.session.lastDrinkTime,
     now: Date.now(),
     warningHandled: state.session.warningHandled,
