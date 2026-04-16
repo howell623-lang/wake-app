@@ -1,4 +1,4 @@
-const CACHE_NAME = "wake-app-v5";
+const CACHE_NAME = "wake-app-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
